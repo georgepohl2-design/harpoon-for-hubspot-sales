@@ -192,7 +192,7 @@ function tileInner(a) {
   else if (a.s === 'red') sub = `<span>${a.why === 'noowner' ? '😱 No owner' : '😳 Never contacted'}</span>`;
   else sub = `<span>${a.missing ? 'Gone from HubSpot' : 'Not in HubSpot yet'}</span>`;
   return `<span class="top"><span class="name"><span class="rk" title="Priority #${a.rank}">${a.rank}</span>${esc(a.name)}</span>${h ? `<span class="heat" title="${h === 'hot' ? 'Hot' : 'Going cold'}">${HEAT[h]}</span>` : ''}</span>
-    <span class="st"><span class="dot" style="background:currentColor"></span>${LABEL[a.s]}</span>${stg}<span class="row">${sub}${right}</span>`;
+    <span class="sr">${LABEL[a.s]}</span>${stg}<span class="row">${sub}${right}</span>`;
 }
 
 function tileHTML(a) {

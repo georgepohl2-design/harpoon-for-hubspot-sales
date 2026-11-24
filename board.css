@@ -126,7 +126,7 @@ body.tv .onboard { display: none !important; }
 @media (max-width: 1000px) { .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 600px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .tw { position: relative; display: flex; }
-.tile { flex: 1; position: relative; text-align: left; font: inherit; color: var(--ink); text-decoration: none; border: 1px solid transparent; border-radius: 14px; padding: 12px 12px 11px; cursor: pointer; display: flex; flex-direction: column; gap: 6px; min-height: 124px; transition: transform .12s ease, box-shadow .12s ease; min-width: 0; }
+.tile { flex: 1; position: relative; text-align: left; font: inherit; color: var(--ink); text-decoration: none; border: 1px solid transparent; border-radius: 14px; padding: 12px 12px 11px; cursor: pointer; display: flex; flex-direction: column; gap: 6px; min-height: 104px; transition: transform .12s ease, box-shadow .12s ease; min-width: 0; }
 .tile:hover { transform: translateY(-2px); box-shadow: 0 10px 22px -12px rgba(60,40,20,.5); }
 
 /* target locked: hover a tile and sight brackets snap onto its corners */
@@ -308,7 +308,7 @@ body.tv .brandmark b { font-size: 40px; }
 body.tv .stat .v { font-size: 38px; }
 body.tv .stat .k { font-size: 15px; }
 body.tv .grid { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
-body.tv .tile { min-height: 140px; }
+body.tv .tile { min-height: 120px; }
 body.tv .tile .name { font-size: 18px; }
 body.tv .tile .st, body.tv .tile .stg, body.tv .tile .row { font-size: 14px; }
 body.tv .shiplog h3 { font-size: 22px; }
