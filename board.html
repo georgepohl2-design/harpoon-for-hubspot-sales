@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Harpoon</title>
+  <link rel="icon" href="icons/icon32.png">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="board.css">
+</head>
+<body data-skin="cream">
+<div class="page" id="page">
+
+  <header class="topbar">
+    <div class="brandmark"><span class="logo js-logo"></span><b>Harpoon</b></div>
+    <div class="tvbar"><span id="tvUpdated"></span><span class="clock" id="tvClock"></span></div>
+    <button class="btn" id="addBtn" type="button">+ Add accounts</button>
+    <button class="btn primary" id="shareBtn" type="button">Share to Slack</button>
+    <button class="btn" id="tvBtn" type="button">📺 Big screen</button>
+    <button class="btn" id="settingsBtn" type="button" aria-label="Settings">⚙️ Settings</button>
+  </header>
+
+  <div id="banners"></div>
+  <div class="stats" id="stats"></div>
+
+  <div class="controls">
+    <button class="chip f" data-f="all" aria-pressed="true" type="button">All</button>
+    <button class="chip f" data-f="won" aria-pressed="false" type="button"><span class="dot" style="background:var(--won)"></span>Won</button>
+    <button class="chip f" data-f="amber" aria-pressed="false" type="button"><span class="dot" style="background:var(--amber)"></span>Being contacted</button>
+    <button class="chip f" data-f="red" aria-pressed="false" type="button"><span class="dot" style="background:var(--red)"></span>Not contacted</button>
+    <button class="chip f" data-f="grey" aria-pressed="false" type="button"><span class="dot" style="background:var(--grey)"></span>Not linked</button>
+    <button class="chip f" data-f="hot" aria-pressed="false" type="button">🔥 Hot</button>
+    <button class="chip f" data-f="cold" aria-pressed="false" type="button">🥶 Going cold</button>
+    <input class="search" id="q" type="search" placeholder="Search accounts" aria-label="Search accounts">
+    <div class="seg" role="group" aria-label="Sort" id="sortSeg"><button type="button" data-sort="rank" aria-pressed="true"># Priority</button><button type="button" data-sort="az" aria-pressed="false">A–Z</button></div>
+    <div class="seg" role="group" aria-label="View" id="viewSeg"><button type="button" data-view="tiles" aria-pressed="true">Tiles</button><button type="button" data-view="list" aria-pressed="false">List</button></div>
+    <span class="updated" id="updated"></span>
+  </div>
+
+  <div class="grid" id="grid"></div>
+  <div class="tablewrap" id="tablewrap" hidden></div>
+  <div class="empty" id="empty" hidden></div>
+  <div class="count" id="count"></div>
+
+  <section class="shiplog" id="shiplog" aria-label="Ship's log"></section>
+  <p class="legend" id="legend"></p>
+
+  <div class="hc hc-pop" id="pop" hidden></div>
+</div>
+
+<button class="btn tvexit" id="tvExit" type="button">Exit TV mode (Esc)</button>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<!-- ============ Add accounts ============ -->
+<dialog id="addDlg" aria-labelledby="addTitle">
+  <div class="dlg">
+    <div class="dlg-head"><h2 id="addTitle">Load your whales</h2><button class="close" data-close type="button" aria-label="Close">×</button></div>
+    <p class="lbl2">Paste names, upload a CSV, or pull in the companies already ticked as target accounts in HubSpot. Harpoon finds each one in HubSpot and asks you to check anything it isn't sure about.</p>
+    <p class="lbl2">🐋 <b>100 whales is the max.</b> Need more? That's trawling, not harpooning.<br>🔢 <b>List them most important first.</b> New whales join the bottom of your ranking, and you can drag them into place on the board.</p>
+    <div class="seg" role="group" aria-label="How to add accounts" id="addTabs">
+      <button type="button" data-pane="paste" aria-pressed="true">📋 Paste names</button>
+      <button type="button" data-pane="csv" aria-pressed="false">📄 Upload a CSV</button>
+      <button type="button" data-pane="hs" aria-pressed="false">🎯 Pull from HubSpot</button>
+    </div>
+    <div class="pane" data-pane="paste">
+      <label for="addText" class="lbl2">One company per line. A company name or its website (like acme.com) both work. A website is the most exact match.</label>
+      <textarea id="addText" rows="6" placeholder="Acme Logistics&#10;globex.com&#10;Initech"></textarea>
+      <div style="margin-top:8px"><button class="btn primary" id="findBtn" type="button">🔎 Find them in HubSpot</button> <span class="lbl2" id="findProgress"></span></div>
+    </div>
+    <div class="pane" data-pane="csv" hidden>
+      <label class="drop" for="csvFile"><b>Choose a CSV file</b><span>Export one from any spreadsheet. The file stays on your computer.</span></label>
+      <input type="file" id="csvFile" accept=".csv,text/csv" class="sr">
+      <p class="lbl2" style="margin-top:8px">The format: a column called <b>Company name</b> and, if you have it, a column called <b>Domain</b>. Other columns are ignored.</p>
+      <pre class="code">Company name,Domain
+Acme Logistics,acme.com
+Globex,</pre>
+    </div>
+    <div class="pane" data-pane="hs" hidden>
+      <p>If your team ticks <b>"Target account"</b> on companies in HubSpot (part of HubSpot's ABM tools), Harpoon can pull them all in one go.</p>
+      <div style="margin-top:8px"><button class="btn primary" id="pullBtn" type="button">🎯 Pull my HubSpot target accounts</button></div>
+    </div>
+    <div class="results" id="results"></div>
+    <div class="dlg-foot">
+      <span class="count" id="placeCount"></span>
+      <button class="btn primary" id="confirmAdd" type="button" disabled>Add to Harpoon</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- ============ Link one company ============ -->
+<dialog id="linkDlg" aria-labelledby="linkTitle">
+  <div class="dlg">
+    <div class="dlg-head"><h2 id="linkTitle">Link to HubSpot</h2><button class="close" data-close type="button" aria-label="Close">×</button></div>
+    <p class="lbl2" id="linkIntro"></p>
+    <div class="inrow"><input class="field" id="linkQ" type="search" aria-label="Company name or website"><button class="btn primary" id="linkFind" type="button">🔎 Search HubSpot</button></div>
+    <div id="linkResults"></div>
+  </div>
+</dialog>
+
+<!-- ============ Share preview ============ -->
+<dialog id="shareDlg" aria-labelledby="shareTitle">
+  <div class="dlg">
+    <div class="dlg-head"><h2 id="shareTitle">Share to Slack</h2><button class="close" data-close type="button" aria-label="Close">×</button></div>
+    <p class="lbl2">This is exactly what your team will see in Slack.</p>
+    <div class="preview"><div class="ava js-logo"></div><div class="body"><div class="who">Harpoon<em>APP</em></div><div id="sharePreview" class="body"></div></div></div>
+    <div id="shareNote"></div>
+    <div class="dlg-foot"><span class="lbl2" id="shareWhere"></span><button class="btn primary" id="sendNow" type="button">Send to Slack now</button></div>
+    <section class="sched-box" aria-labelledby="schedTitle">
+      <h3 id="schedTitle">🔔 Send it automatically</h3>
+      <div class="freq" role="radiogroup" aria-label="How often">
+        <label><input type="radio" name="freq" value="daily"> <span><b>Every weekday morning</b><small>The short version: tally, hot and cold, next to hunt</small></span></label>
+        <label><input type="radio" name="freq" value="weekly"> <span><b>Every Monday</b><small>The full rundown, with who's doing what</small></span></label>
+        <label><input type="radio" name="freq" value="off"> <span><b>Off</b><small>Only when I press Send</small></span></label>
+      </div>
+      <div class="inrow"><label for="shareTime" class="lbl2" style="font-weight:600">Time</label><input class="field" id="shareTime" type="time" style="flex:0 0 130px"><span class="small" id="shareNext"></span></div>
+      <p class="small">The schedule runs inside Chrome, so it only goes out while Chrome is open. If Chrome was closed at that time, it goes out as soon as you next open Chrome.</p>
+    </section>
+  </div>
+</dialog>
+
+<!-- ============ Big screen ============ -->
+<dialog id="tvDlg" aria-labelledby="tvTitle">
+  <div class="dlg">
+    <div class="dlg-head"><h2 id="tvTitle">📺 Get it on the big screen</h2><button class="close" data-close type="button" aria-label="Close">×</button></div>
+    <p>Broadcast the hunt to the whole crew. Put Harpoon on the office TV and everyone can see who's on what, all day.</p>
+    <ol class="tv-steps">
+      <li><b>Start TV mode</b> (button below). The board goes full screen with big text and no buttons, and refreshes itself every 10 minutes.</li>
+      <li><b>Cast this tab to the TV.</b> In Chrome, click the <b>⋮</b> menu (top right) → <b>Cast, save and share</b> → <b>Cast…</b>, then pick your office TV. This works with TVs that have Chromecast or Google TV built in, or a Chromecast plugged into them.</li>
+      <li><b>Or skip casting:</b> plug a spare laptop or a small mini PC into the TV with an HDMI cable, install Harpoon on it, and start TV mode there.</li>
+    </ol>
+    <div class="tv-note">
+      <b>Good to know</b>
+      <ul>
+        <li>Casting streams from the computer you cast from, so that computer has to stay on, awake and online, with Chrome open. For a screen that's always on, use a spare laptop or mini PC that lives by the TV.</li>
+        <li>Set that computer to never go to sleep (on a Mac: System Settings → Displays / Energy; on Windows: Settings → Power).</li>
+        <li>While TV mode is on, Harpoon asks the browser to keep the screen awake.</li>
+        <li>To leave TV mode, press <b>Esc</b>, or move the mouse and click <b>Exit TV mode</b>.</li>
+      </ul>
+    </div>
+    <div class="dlg-foot"><span class="lbl2">Tip: on a TV, the Ivory background (in Settings) reads best.</span><button class="btn primary" id="tvStart" type="button">Start TV mode</button></div>
+  </div>
+</dialog>
+
+<!-- ============ Settings ============ -->
+<dialog id="settingsDlg" aria-labelledby="setTitle">
+  <div class="dlg">
+    <div class="dlg-head"><span class="logo js-logo" style="width:36px;height:36px;display:block"></span><h2 id="setTitle">Settings</h2><button class="close" data-close type="button" aria-label="Close">×</button></div>
+    <div id="webNote"></div>
+
+    <section class="set-sec">
+      <h3>Connect HubSpot</h3>
+      <p class="lbl2">Harpoon only ever <b>reads</b> from HubSpot. The access token stays in this Chrome and is only ever sent to HubSpot.</p>
+      <details class="help">
+        <summary>How to get an access token (about 5 minutes, needs a HubSpot Super Admin)</summary>
+        <ol>
+          <li>In HubSpot, open <b>Settings</b> (the cog) → <b>Integrations</b> → <b>Private Apps</b>. In some newer accounts it's under <b>Development → Legacy apps</b>.</li>
+          <li>Create a private app called <b>Harpoon</b>.</li>
+          <li>On the <b>Scopes</b> tab, tick these four, all <b>Read</b>: <code>crm.objects.companies.read</code>, <code>crm.objects.deals.read</code>, <code>crm.objects.owners.read</code> and <code>crm.objects.contacts.read</code> (HubSpot uses that last one to unlock emails, calls and meetings).</li>
+          <li>Create the app, then copy its <b>access token</b> and paste it below.</li>
+        </ol>
+      </details>
+      <label for="tokenIn">HubSpot access token</label>
+      <div class="inrow"><input class="field" id="tokenIn" type="password" autocomplete="off" spellcheck="false" placeholder="pat-…"><button class="btn primary" id="testHs" type="button">Test &amp; connect</button><button class="btn danger" id="disconnect" type="button">Disconnect</button></div>
+      <div id="hsResult"></div>
+    </section>
+
+    <section class="set-sec">
+      <h3>Connect Slack</h3>
+      <details class="help">
+        <summary>How to get a Slack webhook link (about 3 minutes)</summary>
+        <ol>
+          <li>Go to <b>api.slack.com/apps</b> and click <b>Create New App → From scratch</b>. Call it <b>Harpoon</b> and pick your workspace.</li>
+          <li>Open <b>Incoming Webhooks</b>, switch it on, and click <b>Add New Webhook to Workspace</b>.</li>
+          <li>Choose the channel (for example <b>#target-accounts</b>) and click <b>Allow</b>.</li>
+          <li>Copy the webhook link (it starts with <code>https://hooks.slack.com/</code>) and paste it below.</li>
+        </ol>
+      </details>
+      <label for="hookIn">Slack webhook link</label>
+      <div class="inrow"><input class="field" id="hookIn" type="password" autocomplete="off" spellcheck="false" placeholder="https://hooks.slack.com/services/…"><button class="btn" id="testSlack" type="button">Save &amp; send test message</button></div>
+      <div id="slackResult"></div>
+    </section>
+
+
+    <section class="set-sec">
+      <h3>Tag people in Slack</h3>
+      <label class="inrow" style="font-weight:500"><input type="checkbox" id="mentionsIn"> Tag the account owner in "Next to hunt"</label>
+      <p class="small">To really ping someone, Harpoon needs their Slack member ID: in Slack, click their name → <b>⋮</b> → <b>Copy member ID</b>. Without it, Harpoon just writes their name.</p>
+      <div class="ids" id="idsList"></div>
+    </section>
+
+    <section class="set-sec">
+      <h3>Hot and cold</h3>
+      <div class="nums">
+        <span>🔥 Hot = at least <input class="field" id="hotT" type="number" min="1" max="99"> touches and a touch in the last <input class="field" id="hotD" type="number" min="1" max="365"> days</span>
+        <span>🥶 Going cold = no touch for <input class="field" id="coldD" type="number" min="1" max="999"> days</span>
+      </div>
+    </section>
+
+    <section class="set-sec">
+      <h3>Look</h3>
+      <div class="inrow">
+        <label for="curIn" class="lbl2" style="font-weight:600">Currency</label>
+        <select id="curIn"><option>£</option><option>$</option><option>€</option></select>
+        <label for="skinIn" class="lbl2" style="font-weight:600;margin-left:12px">Background</label>
+        <select id="skinIn"><option value="ivory">Ivory</option><option value="cream">Cream</option><option value="oat">Oat</option></select>
+      </div>
+    </section>
+
+    <section class="set-sec" id="demoSec">
+      <h3>Demo data</h3>
+      <div class="inrow"><button class="btn" id="resetDemo" type="button">Reset the demo board</button><span class="small">Brings back the 20 made-up companies.</span></div>
+    </section>
+  </div>
+</dialog>
+
+<script type="module" src="board.js"></script>
+</body>
+</html>
