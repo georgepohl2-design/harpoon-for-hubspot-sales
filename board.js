@@ -2,8 +2,8 @@
 import * as store from './lib/store.js';
 import { IS_EXT } from './lib/store.js';
 import { logoSVG } from './lib/logo.js';
-import { demoAccounts, demoSearch, demoTargetAccounts } from './lib/demo.js';
-import { CAP, LABEL, heat, money, moneyFull, ago, daysSince, buildRundown, rundownToHTML, rundownToSlack, nextDue, scheduleLabel } from './lib/model.js';
+import { demoAccounts, demoSearch, demoTargetAccounts, demoWatch } from './lib/demo.js';
+import { CAP, LABEL, heat, money, moneyFull, ago, daysSince, buildRundown, rundownToHTML, rundownToSlack, nextDue, scheduleLabel, trackChanges, describeChange, changeTag, stateOf } from './lib/model.js';
 import * as hubspot from './lib/hubspot.js';
 import { sendSlack } from './lib/slack.js';
 import { drawSnapshot, snapshotBlob } from './lib/snapshot.js';
@@ -21,6 +21,7 @@ let targets = [];      // live: [{ key, id, name }]
 let demoState = {};    // demo: { removed, added, links }
 let warnings = [], errorMsg = '', lastUpdated = null, refreshing = false, notifyState = {};
 let filter = 'all', query = '';
+let watch = { seen: {}, changes: {} }; // what changed since you last looked (see trackChanges)
 
 // ---------- start ----------
 init();
@@ -36,6 +37,7 @@ async function init() {
   if (IS_EXT && chrome.storage && chrome.storage.onChanged) {
     chrome.storage.onChanged.addListener((ch) => {
       if (ch.notify) { notifyState = ch.notify.newValue || {}; renderBanners(); }
+      if (ch.watch && mode === 'live') { watch = ch.watch.newValue || { seen: {}, changes: {} }; render(); } // the hourly background check found something
     });
   }
 }
@@ -55,10 +57,13 @@ async function load() {
       accounts = targets.map(t => byKey[t.key]).filter(Boolean);
       warnings = cache.warnings || []; lastUpdated = cache.at;
     } else accounts = [];
+    ({ watch = { seen: {}, changes: {} } } = await store.get('watch'));
+    if (accounts.length && !Object.keys(watch.seen || {}).length) { watch = trackChanges(accounts, {}, S); await store.set({ watch }); }
   } else {
     mode = 'demo';
     ({ demo: demoState = {} } = await store.get('demo'));
     accounts = demoAccounts(demoState);
+    watch = demoWatch(accounts, demoState, a => stateOf(a, S));
     lastUpdated = Date.now();
   }
 }
@@ -69,7 +74,9 @@ async function refresh() {
   try {
     const r = await hubspot.refresh(S.token, targets);
     accounts = r.accounts; warnings = r.warnings; lastUpdated = Date.now();
-    await store.set({ cache: { at: lastUpdated, accounts, warnings, portal: r.portal } });
+    const { watch: stored } = await store.get('watch');
+    watch = trackChanges(accounts, stored || watch, S);
+    await store.set({ cache: { at: lastUpdated, accounts, warnings, portal: r.portal }, watch });
   } catch (e) {
     errorMsg = e.message || String(e);
   } finally {
@@ -81,10 +88,20 @@ async function refresh() {
 
 function badge() {
   if (!IS_EXT) return;
-  try { chrome.runtime.sendMessage({ type: 'badge', accounts: accounts.map(a => ({ s: a.s })) }); } catch { /* ignore */ }
+  try { chrome.runtime.sendMessage({ type: 'badge', count: Object.keys(watch.changes || {}).length }); } catch { /* ignore */ }
 }
 
-async function saveDemo() { await store.set({ demo: demoState }); accounts = demoAccounts(demoState); }
+// You've seen what changed on this whale: drop its dot, and take it off the toolbar count.
+async function markSeen(keys) {
+  keys = [].concat(keys).filter(k => watch.changes && watch.changes[k]);
+  if (!keys.length) return;
+  if (mode === 'demo') { demoState.seenChanges = [...new Set([...(demoState.seenChanges || []), ...keys])]; await saveDemo(); }
+  else { keys.forEach(k => delete watch.changes[k]); await store.set({ watch }); }
+  keys.forEach(k => { const tw = document.querySelector(`.tw[data-key="${CSS.escape(k)}"] .chg`); if (tw) tw.remove(); });
+  renderBanners(); badge();
+}
+
+async function saveDemo() { await store.set({ demo: demoState }); accounts = demoAccounts(demoState); watch = demoWatch(accounts, demoState, a => stateOf(a, S)); }
 async function saveTargets() { await store.set({ targets }); }
 async function saveS() { await store.saveSettings(S); }
 
@@ -162,6 +179,8 @@ function renderBanners() {
   const b = [];
   if (!IS_EXT && !new URLSearchParams(location.search).has('clean')) b.push(`<div class="banner demo">👋 This is the online demo, with made-up companies. Install the Chrome extension to connect your own HubSpot and Slack. <a class="btn small" href="${REPO}#install-it-no-coding-needed-about-5-minutes" target="_blank" rel="noopener">How to install</a></div>`);
   else if (mode === 'demo' && $('onboard').hidden) b.push(`<div class="banner demo">Demo mode: these are made-up companies, and no real whales were harmed. Connect HubSpot in Settings to see your own. <button class="btn small primary pulse" type="button" data-open="settings">Connect HubSpot</button></div>`);
+  const nChg = Object.keys(watch.changes || {}).length;
+  if (nChg) b.push(`<div class="banner chgb">🔔 <span><b>${nChg} whale${nChg > 1 ? 's' : ''} changed</b> since you last looked. Hover a tagged tile to see what changed.</span> <button class="btn small" type="button" data-act="seen-all">Mark all seen</button></div>`);
   if (errorMsg) b.push(`<div class="banner err">⚠️ ${esc(errorMsg)} <button class="btn small" type="button" data-open="settings">Settings</button></div>`);
   warnings.forEach(w => b.push(`<div class="banner warn">⚠️ ${esc(w)}</div>`));
   if (notifyState.lastError && !(notifyState.lastSent > notifyState.lastErrorAt)) b.push(`<div class="banner err">📭 The last scheduled Slack notification didn't go out: ${esc(notifyState.lastError)}</div>`);
@@ -218,7 +237,7 @@ function tileHTML(a) {
   if (a.s === 'grey') el = `<button type="button" class="tile s-grey" data-act="link">${inner}</button>`;
   else if (a.url) el = `<a class="tile s-${a.s}" href="${esc(a.url)}" target="_blank" rel="noopener">${inner}</a>`;
   else el = `<button type="button" class="tile s-${a.s}" data-act="open">${inner}</button>`;
-  return `<div class="tw" data-key="${esc(a.key)}" draggable="true">${el}<i class="cb k1"></i><i class="cb k2"></i><i class="cb k3"></i><i class="cb k4"></i><button class="x" type="button" data-act="remove" title="Throw it back (remove)" aria-label="Remove ${esc(a.name)}">×</button></div>`;
+  return `<div class="tw" data-key="${esc(a.key)}" draggable="true">${el}${watch.changes && watch.changes[a.key] ? `<span class="chg" title="${esc(describeChange(watch.changes[a.key]))}" aria-label="Changed: ${esc(describeChange(watch.changes[a.key]))}">${esc(changeTag(watch.changes[a.key]))}</span>` : ''}<i class="cb k1"></i><i class="cb k2"></i><i class="cb k3"></i><i class="cb k4"></i><button class="x" type="button" data-act="remove" title="Throw it back (remove)" aria-label="Remove ${esc(a.name)}">×</button></div>`;
 }
 
 function companyLink(a) {
@@ -288,6 +307,8 @@ function stageStrip(a) {
 function card(a) {
   const h = heat(a, S);
   let out = `<h4><span>#${a.rank} ${esc(a.name)}</span><span>${HEAT[h]}</span></h4>`;
+  const chg = watch.changes && watch.changes[a.key];
+  if (chg) out += `<div class="chgline">New: ${esc(describeChange(chg))} <span>· ${agoMin(chg.at)}</span></div>`;
   if (a.s === 'amber') {
     out += `<div class="sub" style="color:var(--amber)">Being contacted${a.t ? ` · ${a.t} touches` : ''}</div>`;
     out += `<dl><dt>Owner</dt><dd>${esc(a.owner || '–')}</dd><dt>Last touch</dt><dd>${ago(a.last)}</dd><dt>Deal</dt><dd>${a.deal ? (a.deal.amount ? moneyFull(a.deal.amount, S.currency) : 'Open') : 'None yet'}</dd>${a.deal ? `<dt>Stage</dt><dd>${esc(a.deal.stage)}</dd>` : ''}</dl>`;
@@ -745,11 +766,12 @@ function bind() {
     if (act.dataset.act === 'remove') { e.preventDefault(); removeAccount(key); }
     if (act.dataset.act === 'link') openLink(key);
     if (act.dataset.act === 'open') openDemoNote(key);
+    if (act.dataset.act === 'seen-all') markSeen(Object.keys(watch.changes || {}));
   });
     $('grid').addEventListener('mouseover', e => { const tw = e.target.closest('.tw'); if (!tw) return; showCard(tw); });
   $('grid').addEventListener('focusin', e => { const tw = e.target.closest('.tw'); if (tw) showCard(tw); });
   const hideCard = () => { $('pop').hidden = true; };
-  $('grid').addEventListener('mouseout', e => { const from = e.target.closest('.tw'); if (from && (!e.relatedTarget || !from.contains(e.relatedTarget))) hideCard(); });
+  $('grid').addEventListener('mouseout', e => { const from = e.target.closest('.tw'); if (from && (!e.relatedTarget || !from.contains(e.relatedTarget))) { hideCard(); markSeen(from.dataset.key); } });
   $('grid').addEventListener('mouseleave', hideCard);
   $('grid').addEventListener('click', hideCard);
   window.addEventListener('scroll', hideCard, { passive: true });

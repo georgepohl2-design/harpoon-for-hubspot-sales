@@ -1,17 +1,19 @@
 // Harpoon's background worker:
 //  - clicking the whale in the toolbar opens the board in its own full-size tab (or jumps to it)
 //  - sends the scheduled Slack notification (daily or weekly), catching up if Chrome was closed
-//  - keeps the red number on the toolbar whale up to date
+//  - keeps the red number on the toolbar whale up to date: how many whales changed status since you last looked
+//    (checks HubSpot once an hour while Chrome is open)
 //  - handles "Open the target account list in Harpoon" links from Slack
 
 import * as store from './lib/store.js';
-import { nextDue, buildRundown, rundownToSlack } from './lib/model.js';
-import { demoAccounts } from './lib/demo.js';
+import { nextDue, buildRundown, rundownToSlack, trackChanges, stateOf } from './lib/model.js';
+import { demoAccounts, demoWatch } from './lib/demo.js';
 import * as hubspot from './lib/hubspot.js';
 import { sendSlack } from './lib/slack.js';
 
 const BOARD = chrome.runtime.getURL('board.html');
 const ALARM = 'harpoon-notify';
+const WATCH = 'harpoon-watch'; // hourly look at HubSpot for whales that changed status
 
 async function openBoard() {
   try {
@@ -28,18 +30,27 @@ async function openBoard() {
 
 chrome.action.onClicked.addListener(openBoard);
 
-async function setBadge(accounts) {
-  const red = accounts.filter(a => a.s === 'red').length;
+// The badge: how many whales changed status (won, contacted, not contacted, hot, cold) since you last looked.
+async function setBadge(count) {
   await chrome.action.setBadgeBackgroundColor({ color: '#D23B3B' });
-  await chrome.action.setBadgeText({ text: red ? String(red) : '' });
-  await chrome.action.setTitle({ title: red ? `Harpoon: ${red} target account${red > 1 ? 's' : ''} nobody has contacted` : 'Harpoon' });
+  await chrome.action.setBadgeText({ text: count ? String(count) : '' });
+  await chrome.action.setTitle({ title: count ? `Harpoon: ${count} whale${count > 1 ? 's' : ''} changed status. Open the board to see what changed.` : 'Harpoon' });
+}
+
+async function badgeFromStore() {
+  const settings = await store.loadSettings();
+  if (settings.token) { const { watch = {} } = await store.get('watch'); return setBadge(Object.keys(watch.changes || {}).length); }
+  const { demo = {} } = await store.get('demo');
+  return setBadge(Object.keys(demoWatch(demoAccounts(demo), demo, a => stateOf(a, settings)).changes).length);
 }
 
 async function currentAccounts(settings) {
   if (settings.token) {
     const { targets = [] } = await store.get('targets');
     const r = await hubspot.refresh(settings.token, targets);
-    await store.set({ cache: { at: Date.now(), accounts: r.accounts, warnings: r.warnings, portal: r.portal } });
+    const { watch: stored } = await store.get('watch');
+    const watch = trackChanges(r.accounts, stored || {}, settings);
+    await store.set({ cache: { at: Date.now(), accounts: r.accounts, warnings: r.warnings, portal: r.portal }, watch });
     return { accounts: r.accounts, demo: false };
   }
   const { demo = {} } = await store.get('demo');
@@ -53,8 +64,17 @@ async function sendScheduled() {
   const r = buildRundown(accounts, settings, { full: settings.schedule.freq === 'weekly', demo });
   await sendSlack(settings.webhook, rundownToSlack(r, settings));
   await store.set({ notify: { ...(await store.get('notify')).notify, lastSent: Date.now() } });
-  await setBadge(accounts);
+  await badgeFromStore();
 }
+
+// Once an hour: read HubSpot, note any whale that changed status, update the badge. Live mode only.
+async function watchCheck() {
+  const settings = await store.loadSettings();
+  if (!settings.token) return;
+  try { await currentAccounts(settings); } catch { /* offline or HubSpot hiccup: try again next hour */ }
+  await badgeFromStore();
+}
+const startWatch = () => chrome.alarms.create(WATCH, { periodInMinutes: 60, delayInMinutes: 1 });
 
 async function reschedule() {
   const settings = await store.loadSettings();
@@ -75,6 +95,7 @@ async function catchUp() {
 }
 
 chrome.alarms.onAlarm.addListener(async (alarm) => {
+  if (alarm.name === WATCH) { await watchCheck(); return; }
   if (alarm.name !== ALARM) return;
   try { await sendScheduled(); }
   catch (e) {
@@ -84,19 +105,17 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   await reschedule();
 });
 
-chrome.runtime.onStartup.addListener(catchUp);
+chrome.runtime.onStartup.addListener(async () => { startWatch(); await badgeFromStore(); await catchUp(); });
 chrome.runtime.onInstalled.addListener(async () => {
   await reschedule();
-  const { cache } = await store.get('cache');
-  const settings = await store.loadSettings();
-  if (cache && settings.token) await setBadge(cache.accounts || []);
-  else { const { demo = {} } = await store.get('demo'); await setBadge(demoAccounts(demo)); }
+  startWatch();
+  await badgeFromStore();
 });
 
 chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   if (!msg || !msg.type) return;
   if (msg.type === 'reschedule') { reschedule().then(() => reply({ ok: true })); return true; }
-  if (msg.type === 'badge') { setBadge(msg.accounts || []).then(() => reply({ ok: true })); return true; }
+  if (msg.type === 'badge') { setBadge(msg.count || 0).then(() => reply({ ok: true })); return true; }
   if (msg.type === 'open-board') {
     openBoard().then(() => { if (sender.tab && sender.tab.id >= 0) chrome.tabs.remove(sender.tab.id); reply({ ok: true }); });
     return true;
