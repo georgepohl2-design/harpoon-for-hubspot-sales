@@ -114,7 +114,7 @@ function render() {
   renderBoard();
   renderLog();
   renderStatus();
-  $('legend').textContent = `🔥 Hot: ${S.hotTouches}+ touches and a touch in the last ${S.hotDays} days. 🥶 Going cold: no touch for ${S.coldDays}+ days. Change these in Settings.`;
+  $('legend').textContent = `🔥 Hot: ${S.hotTouches}+ touches and a touch in the last ${S.hotDays} days. 🥶 Getting cold: no touch for ${S.coldDays}+ days. Change these in Settings.`;
   document.querySelectorAll('#sortSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.sort === (S.sort || 'rank')));
   document.querySelectorAll('#viewSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.view === S.view));
 }
@@ -200,7 +200,7 @@ function renderStats() {
       <div class="bar" role="img" aria-label="${W} won, ${Y} being contacted, ${R} not contacted, ${G} not linked"><i style="width:${w(W)};background:var(--won)"></i><i style="width:${w(Y)};background:var(--amber)"></i><i style="width:${w(R)};background:var(--red)"></i><i style="width:${w(G)};background:var(--grey)"></i></div>
       <span class="hint hover-only">Ranked by priority, starting from #1</span></div>
     <div class="stat"><span class="k"><span class="dot" style="background:var(--won)"></span>Won</span><span class="v">${W} <small>${pct(W)}%</small></span></div>
-    <div class="stat"><span class="k"><span class="dot" style="background:var(--amber)"></span>Being contacted</span><span class="v">${Y} <small>${pct(Y)}%</small></span><span class="hint">🔥 ${hot} hot · 🥶 ${cold} going cold</span></div>
+    <div class="stat"><span class="k"><span class="dot" style="background:var(--amber)"></span>Being contacted</span><span class="v">${Y} <small>${pct(Y)}%</small></span><span class="hint">🔥 ${hot} hot · 🥶 ${cold} getting cold</span></div>
     <div class="stat"><span class="k"><span class="dot" style="background:var(--red)"></span>Not contacted</span><span class="v">${R} <small>${pct(R)}%</small></span></div>
     <div class="stat"><span class="k">Open pipeline</span><span class="v">${money(pipe, S.currency) || S.currency + '0'}</span></div>
     <div class="stat"><span class="k">Won revenue</span><span class="v">${money(wonAmt, S.currency) || S.currency + '0'}</span></div>`;
@@ -227,7 +227,7 @@ function tileInner(a) {
   else if (a.s === 'won') sub = `<span>${a.won && a.won.date ? 'Won ' + monthYear(a.won.date) : 'Customer'}</span>`;
   else if (a.s === 'red') sub = `<span>${a.why === 'noowner' ? '😱 No owner' : '😳 Never contacted'}</span>`;
   else sub = `<span>${a.missing ? 'Gone from HubSpot' : 'Not in HubSpot yet'}</span>`;
-  return `<span class="top"><span class="name"><span class="rk" title="Priority #${a.rank}">${a.rank}</span>${esc(a.name)}</span>${h ? `<span class="heat" title="${h === 'hot' ? 'Hot' : 'Going cold'}">${HEAT[h]}</span>` : ''}</span>
+  return `<span class="top"><span class="name"><span class="rk" title="Priority #${a.rank}">${a.rank}</span>${esc(a.name)}</span>${h ? `<span class="heat" title="${h === 'hot' ? 'Hot' : 'Getting cold'}">${HEAT[h]}</span>` : ''}</span>
     <span class="sr">${LABEL[a.s]}</span>${stg}<span class="row">${sub}${right}</span>`;
 }
 

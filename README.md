@@ -47,7 +47,7 @@ Click the whale in Chrome's toolbar and the board opens in its own full-size tab
 | 🔴 **Not contacted** | 😱 Nobody owns it, or 😳 someone owns it but nothing is logged yet. |
 | ⚪ **Not linked** | You typed it in but it isn't matched to a HubSpot company yet. |
 
-On each tile: ✉️ emails, 📞 calls and 🤝 meetings logged, the deal stage, and the owner. **🔥 Hot** means lots of recent contact; **🥶 Going cold** means no touch for weeks. You choose the numbers in Settings.
+On each tile: ✉️ emails, 📞 calls and 🤝 meetings logged, the deal stage, and the owner. **🔥 Hot** means lots of recent contact; **🥶 Getting cold** means no touch for weeks. You choose the numbers in Settings.
 
 - **Hover a tile** for the detail: emails, calls, meetings, last touch, owner, deal value, lifecycle stage, a deal-stage progress strip, and the latest touches from HubSpot.
 - **Click a tile** to open that company in HubSpot.
@@ -73,7 +73,7 @@ Press **Share** to see a preview, copy it into an email or Teams, send it now, o
 🐋 Ahoy crew! Whales to hunt: 20
 🟢 4 won / 🟠 9 being contacted / 🔴 5 not contacted so far
 🔥 Hot: Moby Dick, Whale C
-🥶 Going cold: Whale M, Whale R
+🥶 Getting cold: Whale M, Whale R
 
 Who's doing what
 • Priya N.: working 3, won 1 · biggest: Moby Dick, £61k in Negotiation
@@ -89,7 +89,7 @@ Open the target account list in Harpoon →
 
 In **Just me** mode it says "Ahoy Captain! Your whales to hunt", adds your open pipeline and what you've won, and skips "Who's doing what" and the @-mentions.
 
-(The weekday version skips "Who's doing what" to stay short. "Who's doing what" never goes past five lines. "Next to hunt" is your highest-ranked whale that nobody has contacted, nobody owns, or is going cold.)
+(The weekday version skips "Who's doing what" to stay short. "Who's doing what" never goes past five lines. "Next to hunt" is your highest-ranked whale that nobody has contacted, nobody owns, or is getting cold.)
 
 ### 📸 Snapshot image
 
