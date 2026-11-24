@@ -51,9 +51,9 @@ On each tile: ✉️ emails, 📞 calls and 🤝 meetings logged, the deal stage
 - Filter by colour, 🔥 or 🥶, search, or switch to a list view.
 - The red number on the toolbar whale is how many target accounts nobody has contacted.
 
-**100 whales is the max.** Need more? That's trawling, not harpooning. (Try adding number 101.)
+**100 whales is the max, but we recommend starting with 20.** Need more than 100? That's trawling, not harpooning. (Try adding number 101.)
 
-**Hover the Harpoon logo** at the top of the board and watch what happens.
+**Hover the Harpoon logo** at the top of the board and watch what happens. Keep an eye on the waves along the top, too.
 
 ### 🎯 Adding your target accounts
 
@@ -66,17 +66,17 @@ Press **Share to Slack** to see a preview and send it now, or to set it to go ou
 ```
 🐋 Ahoy crew! Whales to hunt: 20
 🟢 4 won / 🟠 9 being contacted / 🔴 5 not contacted so far
-🔥 Hot: Emberlytics, Orchardine Retail
-🥶 Going cold: Junipero Learning, Quillstone Media
+🔥 Hot: Moby Dick, Whale C
+🥶 Going cold: Whale M, Whale R
 
 Who's doing what
-• Priya N.: working 3, won 1 · biggest: Emberlytics, £61k in Negotiation
-• Sam K.: working 2, won 1, 1 not contacted yet · biggest: Tidewell Utilities, £28k in Proposal
-• Tom B.: working 1, won 2, 1 not contacted yet · biggest: Maplefinch Legal, £15.5k in Discovery
-• Jess R.: working 3 · biggest: Orchardine Retail, £40k in Demo booked
-• 😱 No owner: Copperlane Freight, Kestrelguard, Pebblepoint Bank
+• Priya N.: working 3, won 1 · biggest: Moby Dick, £61k in Negotiation
+• Sam K.: working 2, won 1, 1 not contacted yet · biggest: Whale H, £28k in Proposal
+• Tom B.: working 1, won 2, 1 not contacted yet · biggest: Whale L, £15.5k in Discovery
+• Jess R.: working 3 · biggest: Whale C, £40k in Demo booked
+• 😱 No owner: Whale E, Whale I, Whale Q
 
-🎯 Next to hunt: #4 Granitehold Insurance. Owned but never contacted. @Tom B. time to make first contact.
+🎯 Next to hunt: #4 Whale D. Owned but never contacted. @Tom B. time to make first contact.
 
 Open the target account list in Harpoon →
 ```
@@ -97,7 +97,7 @@ It's not on the Chrome Web Store yet, so you load it yourself. It's easier than 
 4. **Turn on Developer mode** with the switch in the top-right corner.
 5. **Click "Load unpacked"** (top left) and choose the `harpoon-main` folder.
 6. **Pin the whale.** Click the puzzle-piece icon next to the address bar, then the pin next to **Harpoon**.
-7. **Click the whale.** The board opens in demo mode with 20 made-up companies. Have a play.
+7. **Click the whale.** The board opens in demo mode with 20 made-up whales (Moby Dick leads the pod), plus three welcome steps to get you set up: connect HubSpot, add your whales, set up Slack. Have a play.
 
 To update later, download the ZIP again, replace the folder, and press ↻ on the Harpoon card in `chrome://extensions`.
 

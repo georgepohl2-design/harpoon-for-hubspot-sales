@@ -90,6 +90,7 @@ async function saveS() { await store.saveSettings(S); }
 // ---------- render ----------
 function render() {
   accounts.forEach((a, i) => { a.rank = i + 1; }); // the list order is the priority order: #1 matters most
+  renderOnboard();
   renderBanners();
   renderStats();
   renderBoard();
@@ -100,10 +101,50 @@ function render() {
   document.querySelectorAll('#viewSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.view === S.view));
 }
 
+// ---------- welcome, Captain: three steps to get started ----------
+function renderOnboard() {
+  const el = $('onboard');
+  const steps = [
+    { done: mode === 'live', title: 'Connect your HubSpot CRM', open: 'settings', btn: 'Connect HubSpot',
+      text: 'Read-only: Harpoon never changes anything in HubSpot. About 5 minutes.' },
+    { done: mode === 'live' && targets.length > 0, title: 'Add your target accounts', open: 'add', btn: 'Add whales',
+      text: 'Whales, we call them. 100 is the limit, but we recommend starting with 20.' },
+    { done: !!S.webhook && S.schedule.freq !== 'off', title: 'Set up your Slack messages', open: 'slack', btn: 'Set up Slack',
+      text: 'Schedule team Slack messages so your commercial, sales and marketing teams stay on top of every whale.' }
+  ];
+  const n = steps.filter(x => x.done).length;
+  const all = n === steps.length;
+  // Harpoon doesn't work without these, so there's no skipping: the panel only goes once all three are done and closed
+  const hide = (all && S.welcomeHidden) || new URLSearchParams(location.search).has('cover');
+  el.hidden = hide;
+  if (hide) return;
+  const now = steps.findIndex(x => !x.done);
+  el.innerHTML = `
+    ${all ? '<button class="ob-x" type="button" data-ob="hide">Close</button>' : ''}
+    <div class="ob-head">
+      <div class="ob-txt">
+        <h2>${all ? 'All hands on deck, Captain! 🎉' : 'Welcome to Harpoon, Captain! 🐋'}</h2>
+        <p>${all ? "You're all set. Your whales are on the board and the crew gets briefed in Slack." : `Three steps and you're hunting.${mode === 'demo' ? ' Until then, these are demo whales (no real whales were harmed).' : ''}`}</p>
+      </div>
+      <div class="ob-prog"><span>${n} of ${steps.length} done</span><div class="ob-bar" role="progressbar" aria-valuemin="0" aria-valuemax="${steps.length}" aria-valuenow="${n}" aria-label="Getting started"><i style="--p:${Math.round(n / steps.length * 100)}%"></i></div></div>
+    </div>
+    <ol class="ob-steps">${steps.map((x, i) => `
+      <li class="${x.done ? 'done' : i === now ? 'now' : ''}">
+        <h3><span class="ob-n">${x.done ? '✓' : i + 1}</span>${x.title}</h3>
+        <p>${x.text}</p>
+        ${x.done ? '<span class="ok">Done</span>' : `<button class="btn small${i === now ? ' primary pulse' : ''}" type="button" data-open="${x.open}">${x.btn}</button>`}
+      </li>`).join('')}
+    </ol>`;
+  if (all) el.querySelector('[data-ob="hide"]').onclick = async () => {
+    S.welcomeHidden = true; await saveS(); renderOnboard(); renderBanners();
+    say('Happy hunting, Captain!');
+  };
+}
+
 function renderBanners() {
   const b = [];
   if (!IS_EXT && !new URLSearchParams(location.search).has('clean')) b.push(`<div class="banner demo">👋 This is the online demo, with made-up companies. Install the Chrome extension to connect your own HubSpot and Slack. <a class="btn small" href="${REPO}#install-it-no-coding-needed-about-5-minutes" target="_blank" rel="noopener">How to install</a></div>`);
-  else if (mode === 'demo') b.push(`<div class="banner demo">Demo mode: these are made-up companies, and no real whales were harmed. Connect HubSpot in Settings to see your own. <button class="btn small primary pulse" type="button" data-open="settings">Connect HubSpot</button></div>`);
+  else if (mode === 'demo' && $('onboard').hidden) b.push(`<div class="banner demo">Demo mode: these are made-up companies, and no real whales were harmed. Connect HubSpot in Settings to see your own. <button class="btn small primary pulse" type="button" data-open="settings">Connect HubSpot</button></div>`);
   if (errorMsg) b.push(`<div class="banner err">⚠️ ${esc(errorMsg)} <button class="btn small" type="button" data-open="settings">Settings</button></div>`);
   warnings.forEach(w => b.push(`<div class="banner warn">⚠️ ${esc(w)}</div>`));
   if (notifyState.lastError && !(notifyState.lastSent > notifyState.lastErrorAt)) b.push(`<div class="banner err">📭 The last scheduled Slack notification didn't go out: ${esc(notifyState.lastError)}</div>`);
@@ -160,7 +201,7 @@ function tileHTML(a) {
   if (a.s === 'grey') el = `<button type="button" class="tile s-grey" data-act="link">${inner}</button>`;
   else if (a.url) el = `<a class="tile s-${a.s}" href="${esc(a.url)}" target="_blank" rel="noopener">${inner}</a>`;
   else el = `<button type="button" class="tile s-${a.s}" data-act="open">${inner}</button>`;
-  return `<div class="tw" data-key="${esc(a.key)}" draggable="true">${el}<button class="x" type="button" data-act="remove" title="Throw it back (remove)" aria-label="Remove ${esc(a.name)}">×</button></div>`;
+  return `<div class="tw" data-key="${esc(a.key)}" draggable="true">${el}<i class="cb k1"></i><i class="cb k2"></i><i class="cb k3"></i><i class="cb k4"></i><button class="x" type="button" data-act="remove" title="Throw it back (remove)" aria-label="Remove ${esc(a.name)}">×</button></div>`;
 }
 
 function companyLink(a) {
@@ -251,7 +292,7 @@ function card(a) {
     out += `<div class="sub" style="color:var(--grey)">Not linked</div><div class="why" style="background:var(--grey-bg)">${a.missing ? `"${esc(a.name)}" isn't in HubSpot any more (deleted or merged).` : `We couldn't match "${esc(a.name)}" to a HubSpot company.`} Click to link the right record.</div>`;
   }
   out += stageBlock(a);
-  out += `<div class="foot">${a.s === 'grey' ? 'Click to link →' : a.url ? 'Click to open in HubSpot →' : 'Demo company: no HubSpot record to open'}</div>`;
+  out += `<div class="foot">${a.s === 'grey' ? 'Click to link →' : a.url ? 'Click to see all its activity in HubSpot →' : 'Click: opens it in HubSpot once you connect (demo whale)'}</div>`;
   return out;
 }
 
@@ -297,7 +338,10 @@ async function removeAccount(key) {
   }
 }
 
-function openDemoNote() { say('Demo company: in demo mode there is no HubSpot record to open. Connect HubSpot in Settings.'); }
+function openDemoNote(key) {
+  const a = accounts.find(x => x.key === key);
+  say(`With HubSpot connected, this opens ${a ? a.name : 'the company'} in HubSpot, with every email, call and meeting on it. These are demo whales, so there's nothing to open yet.`);
+}
 
 // ---------- add accounts ----------
 let rows = [], searching = false;
@@ -525,7 +569,7 @@ async function testSlack() {
   $('slackResult').innerHTML = '<p class="lbl2">Sending a test message…</p>'; $('testSlack').disabled = true;
   try {
     await sendSlack(hook, ':whale: Ahoy! Harpoon is now connected to this channel. Your target account notifications will land here.');
-    S.webhook = hook; await saveS();
+    S.webhook = hook; await saveS(); renderOnboard();
     $('slackResult').innerHTML = '<p class="okline">✅ Message in a bottle delivered. Check your Slack channel.</p>';
     setSchedule();
   } catch (e) {
@@ -560,6 +604,7 @@ document.addEventListener('visibilitychange', async () => {
     try { wakeLock = await navigator.wakeLock.request('screen'); } catch { /* ignore */ }
   }
 });
+
 
 
 // ---------- re-ranking ----------
@@ -636,6 +681,11 @@ function bind() {
     document.querySelectorAll('dialog[open]').forEach(d => d.close());
     if (o.dataset.open === 'settings') openSettings();
     if (o.dataset.open === 'add') $('addBtn').click();
+    if (o.dataset.open === 'settings' && o.closest('.onboard')) setTimeout(() => $('tokenIn').focus(), 50);
+    if (o.dataset.open === 'slack') {
+      if (!S.webhook) { openSettings(); setTimeout(() => { $('hookIn').closest('.set-sec').scrollIntoView({ block: 'start' }); $('hookIn').focus(); }, 50); }
+      else openShare();
+    }
   });
 
   // schedule (inside the Share to Slack window)
@@ -679,9 +729,9 @@ function bind() {
     const key = act.dataset.key || (act.closest('[data-key]') && act.closest('[data-key]').dataset.key);
     if (act.dataset.act === 'remove') { e.preventDefault(); removeAccount(key); }
     if (act.dataset.act === 'link') openLink(key);
-    if (act.dataset.act === 'open') openDemoNote();
+    if (act.dataset.act === 'open') openDemoNote(key);
   });
-  $('grid').addEventListener('mouseover', e => { const tw = e.target.closest('.tw'); if (tw) showCard(tw); });
+    $('grid').addEventListener('mouseover', e => { const tw = e.target.closest('.tw'); if (!tw) return; showCard(tw); });
   $('grid').addEventListener('focusin', e => { const tw = e.target.closest('.tw'); if (tw) showCard(tw); });
   $('grid').addEventListener('mouseleave', () => { $('pop').hidden = true; });
   $('grid').addEventListener('focusout', () => { $('pop').hidden = true; });
@@ -727,5 +777,5 @@ function bind() {
   num('hotT', 'hotTouches', 1, 99); num('hotD', 'hotDays', 1, 365); num('coldD', 'coldDays', 1, 999);
   $('curIn').onchange = async () => { S.currency = $('curIn').value; await saveS(); render(); };
   $('skinIn').onchange = async () => { S.skin = $('skinIn').value; document.body.dataset.skin = S.skin; await saveS(); };
-  $('resetDemo').onclick = async () => { demoState = {}; await saveDemo(); render(); badge(); say('Demo board reset: 20 made-up companies are back.'); };
+  $('resetDemo').onclick = async () => { demoState = {}; await saveDemo(); render(); badge(); say('Demo board reset: Moby Dick and the other 19 whales are back.'); };
 }
