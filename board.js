@@ -123,7 +123,7 @@ function renderOnboard() {
     ${all ? '<button class="ob-x" type="button" data-ob="hide">Close</button>' : ''}
     <div class="ob-head">
       <div class="ob-txt">
-        <h2>${all ? 'All hands on deck, Captain! 🎉' : 'Welcome to Harpoon, Captain! 🐋'}</h2>
+        <h2>${all ? 'All hands on deck, Captain! 🎉' : 'Welcome to Harpoon, Captain!'}</h2>
         <p>${all ? "You're all set. Your whales are on the board and the crew gets briefed in Slack." : `Three steps and you're hunting.${mode === 'demo' ? ' Until then, these are demo whales (no real whales were harmed).' : ''}`}</p>
       </div>
       <div class="ob-prog"><span>${n} of ${steps.length} done</span><div class="ob-bar" role="progressbar" aria-valuemin="0" aria-valuemax="${steps.length}" aria-valuenow="${n}" aria-label="Getting started"><i style="--p:${Math.round(n / steps.length * 100)}%"></i></div></div>
@@ -258,41 +258,34 @@ function agoMin(ts) {
 }
 
 // ---------- hover card ----------
-function stageBlock(a) {
-  if (a.s === 'grey') return '';
+// a thin progress strip for the deal stage (no labels: the stage name is in the row above)
+function stageStrip(a) {
   const deal = dealStage(a);
   const stages = a.s === 'won' ? (a.won && a.won.stages) : (a.deal && a.deal.stages);
   const idx = stages ? stages.indexOf(deal) : -1;
-  let h = `<div class="stage"><div class="lbl"><span>Lifecycle stage</span><b>${esc(a.life || '–')}</b></div><div class="lbl"><span>Deal stage</span><b>${esc(deal)}</b></div>`;
-  if (stages && idx >= 0 && stages.length <= 8) {
-    const cols = `grid-template-columns:repeat(${stages.length},1fr)`;
-    h += `<div class="steps ${a.s === 'won' ? 'won' : ''}" style="${cols}">${stages.map((s, i) => `<i class="${i <= idx ? 'on' : ''}"></i>`).join('')}</div>
-      <div class="steps-names" style="${cols}">${stages.map((s, i) => `<span class="${i === idx ? 'cur' : ''}">${esc(s)}</span>`).join('')}</div>`;
-  }
-  return h + '</div>';
+  if (!stages || idx < 0 || stages.length > 8) return '';
+  return `<div class="steps ${a.s === 'won' ? 'won' : ''}" style="grid-template-columns:repeat(${stages.length},1fr)" title="${esc(stages.join(' → '))}">${stages.map((s, i) => `<i class="${i <= idx ? 'on' : ''}"></i>`).join('')}</div>`;
 }
 
+// the hover card: kept short on purpose, the tile and the ship's log carry the rest
 function card(a) {
   const h = heat(a, S);
   let out = `<h4><span>#${a.rank} ${esc(a.name)}</span><span>${HEAT[h]}</span></h4>`;
   if (a.s === 'amber') {
-    out += `<div class="sub" style="color:var(--amber)">Being contacted${a.t != null ? ` · ${a.t} touches` : ''}</div><dl>`;
-    if (a.t != null) out += `<dt>✉️ Emails sent</dt><dd>${a.e}</dd><dt>📞 Calls</dt><dd>${a.c}</dd><dt>🤝 Meetings</dt><dd>${a.m}</dd>`;
-    out += `<dt>🕒 Last touch</dt><dd>${ago(a.last)}</dd><dt>👤 Company owner</dt><dd>${esc(a.owner)}</dd><dt>💷 Deal value</dt><dd>${a.deal && a.deal.amount ? moneyFull(a.deal.amount, S.currency) : 'None yet'}</dd></dl>`;
-    if (h === 'hot') out += `<div class="heatline">🔥 Hot: lots of contact lately. Keep the pressure on.</div>`;
-    if (h === 'cold') out += `<div class="heatline">🥶 Going cold: ${a.last} days since the last touch. Time to throw a line.</div>`;
-    if (a.log && a.log.length) out += `<div class="mini-log"><span class="ml-h">Latest touches, from HubSpot</span>${a.log.slice(0, 3).map(x => `<div><span>${LOGT[x.type]}</span><span>${esc(x.who || '–')} · ${ago(daysSince(x.ts))}</span></div>`).join('')}${a.t > 3 ? `<div><span class="more">+ ${a.t - 3} earlier</span><span></span></div>` : ''}</div>`;
+    out += `<div class="sub" style="color:var(--amber)">Being contacted${a.t ? ` · ${a.t} touches` : ''}</div>`;
+    out += `<dl><dt>Owner</dt><dd>${esc(a.owner || '–')}</dd><dt>Last touch</dt><dd>${ago(a.last)}</dd><dt>Deal</dt><dd>${a.deal ? (a.deal.amount ? moneyFull(a.deal.amount, S.currency) : 'Open') : 'None yet'}</dd>${a.deal ? `<dt>Stage</dt><dd>${esc(a.deal.stage)}</dd>` : ''}</dl>`;
+    out += stageStrip(a);
   } else if (a.s === 'won') {
-    out += `<div class="sub" style="color:var(--won)">🏆 Won</div><dl><dt>📅 Close date</dt><dd>${fullDate(a.won && a.won.date)}</dd><dt>💷 Amount closed</dt><dd>${a.won && a.won.amount ? moneyFull(a.won.amount, S.currency) : '–'}</dd><dt>👤 Company owner</dt><dd>${esc(a.owner || '–')}</dd></dl>`;
+    out += `<div class="sub" style="color:var(--won)">🏆 Won${a.won && a.won.date ? ' · ' + fullDate(a.won.date) : ''}</div>`;
+    out += `<dl><dt>Amount</dt><dd>${a.won && a.won.amount ? moneyFull(a.won.amount, S.currency) : '–'}</dd><dt>Owner</dt><dd>${esc(a.owner || '–')}</dd></dl>`;
   } else if (a.s === 'red') {
     out += `<div class="sub" style="color:var(--red)">Not contacted</div><div class="why" style="background:var(--red-bg)">${a.why === 'noowner'
-      ? "😱 Why it's red: <b>nobody owns this company</b> in HubSpot. Give it an owner first."
-      : `😳 Why it's red: <b>${esc(a.owner)} owns it, but nothing is logged yet.</b> No emails, calls or meetings.`}</div>`;
+      ? '😱 Nobody owns it yet. Give it an owner in HubSpot.'
+      : `😳 ${esc(a.owner)} owns it, but nothing is logged yet.`}</div>`;
   } else {
-    out += `<div class="sub" style="color:var(--grey)">Not linked</div><div class="why" style="background:var(--grey-bg)">${a.missing ? `"${esc(a.name)}" isn't in HubSpot any more (deleted or merged).` : `We couldn't match "${esc(a.name)}" to a HubSpot company.`} Click to link the right record.</div>`;
+    out += `<div class="sub" style="color:var(--grey)">Not linked to HubSpot</div>`;
   }
-  out += stageBlock(a);
-  out += `<div class="foot">${a.s === 'grey' ? 'Click to link →' : a.url ? 'Click to see all its activity in HubSpot →' : 'Click: opens it in HubSpot once you connect (demo whale)'}</div>`;
+  out += `<div class="foot">${a.s === 'grey' ? 'Click to link it →' : a.url ? 'Click to open in HubSpot →' : 'Opens in HubSpot once connected'}</div>`;
   return out;
 }
 
@@ -302,7 +295,7 @@ function showCard(tw) {
   pop.innerHTML = card(a); pop.hidden = false;
   const pr = page.getBoundingClientRect(), tr = tw.getBoundingClientRect();
   let left = tr.right - pr.left + 8;
-  if (left + 300 > pr.width) left = tr.left - pr.left - 298;
+  if (left + 250 > pr.width) left = tr.left - pr.left - 248;
   if (left < 8) left = Math.max(8, tr.left - pr.left);
   const ph = pop.offsetHeight;
   let top = tr.top - pr.top;
@@ -733,7 +726,13 @@ function bind() {
   });
     $('grid').addEventListener('mouseover', e => { const tw = e.target.closest('.tw'); if (!tw) return; showCard(tw); });
   $('grid').addEventListener('focusin', e => { const tw = e.target.closest('.tw'); if (tw) showCard(tw); });
-  $('grid').addEventListener('mouseleave', () => { $('pop').hidden = true; });
+  const hideCard = () => { $('pop').hidden = true; };
+  $('grid').addEventListener('mouseout', e => { const from = e.target.closest('.tw'); if (from && (!e.relatedTarget || !from.contains(e.relatedTarget))) hideCard(); });
+  $('grid').addEventListener('mouseleave', hideCard);
+  $('grid').addEventListener('click', hideCard);
+  window.addEventListener('scroll', hideCard, { passive: true });
+  window.addEventListener('blur', hideCard);
+  document.addEventListener('visibilitychange', hideCard);
   $('grid').addEventListener('focusout', () => { $('pop').hidden = true; });
 
   // add accounts

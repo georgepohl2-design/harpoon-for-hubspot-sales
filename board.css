@@ -201,9 +201,9 @@ a.co:hover { text-decoration: underline; }
 button.co { font: inherit; background: none; border: 0; padding: 0; color: var(--brand-text); font-weight: 600; cursor: pointer; }
 
 /* hover card */
-.hc { width: 290px; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 18px 40px -18px rgba(50,30,20,.45); padding: 14px 15px; display: flex; flex-direction: column; gap: 10px; font-size: 13px; }
+.hc { width: 240px; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 18px 40px -18px rgba(50,30,20,.45); padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
 .hc-pop { position: absolute; z-index: 15; pointer-events: none; }
-.hc h4 { font-size: 17px; font-weight: 600; display: flex; justify-content: space-between; gap: 8px; }
+.hc h4 { font-size: 16px; font-weight: 600; display: flex; justify-content: space-between; gap: 8px; }
 .hc .sub { font-size: 12px; margin-top: -6px; font-weight: 700; }
 .hc dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; }
 .hc dt { color: var(--muted); } .hc dd { margin: 0; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
