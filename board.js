@@ -6,6 +6,7 @@ import { demoAccounts, demoSearch, demoTargetAccounts } from './lib/demo.js';
 import { CAP, LABEL, heat, money, moneyFull, ago, daysSince, buildRundown, rundownToHTML, rundownToSlack, nextDue, scheduleLabel } from './lib/model.js';
 import * as hubspot from './lib/hubspot.js';
 import { sendSlack } from './lib/slack.js';
+import { drawSnapshot, snapshotBlob } from './lib/snapshot.js';
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -104,17 +105,24 @@ function render() {
 // ---------- welcome, Captain: three steps to get started ----------
 function renderOnboard() {
   const el = $('onboard');
+  const solo = S.hunting === 'solo';
   const steps = [
     { done: mode === 'live', title: 'Connect your HubSpot CRM', open: 'settings', btn: 'Connect HubSpot',
-      text: 'Read-only: Harpoon never changes anything in HubSpot. About 5 minutes.' },
+      text: solo ? "Read-only. Not a HubSpot admin? Ask yours for a read-only token. It takes them 5 minutes."
+                 : 'Read-only: Harpoon never changes anything in HubSpot. About 5 minutes.' },
     { done: mode === 'live' && targets.length > 0, title: 'Add your target accounts', open: 'add', btn: 'Add whales',
-      text: 'Whales, we call them. 100 is the limit, but we recommend starting with 20.' },
-    { done: !!S.webhook && S.schedule.freq !== 'off', title: 'Set up your Slack messages', open: 'slack', btn: 'Set up Slack',
-      text: 'Schedule team Slack messages so your commercial, sales and marketing teams stay on top of every whale.' }
+      text: solo ? "Your own whales: the accounts you're going after. 100 is the limit, but we recommend starting with 20."
+                 : 'Whales, we call them. 100 is the limit, but we recommend starting with 20.' },
+    solo
+      ? { done: (!!S.webhook && S.schedule.freq !== 'off') || !!S.slackSkipped, optional: true, title: 'Set up your Slack recap', open: 'slack', btn: 'Set up Slack',
+          text: 'A weekly recap of your whales, pipeline and wins. Send it to yourself, or to a channel your sales manager or CRO reads.' }
+      : { done: !!S.webhook && S.schedule.freq !== 'off', title: 'Set up your Slack messages', open: 'slack', btn: 'Set up Slack',
+          text: 'Schedule team Slack messages so your commercial, sales and marketing teams stay on top of every whale.' }
   ];
   const n = steps.filter(x => x.done).length;
   const all = n === steps.length;
   // Harpoon doesn't work without these, so there's no skipping: the panel only goes once all three are done and closed
+  // (the one exception: the Slack recap is optional when it's just you)
   const hide = (all && S.welcomeHidden) || new URLSearchParams(location.search).has('cover');
   el.hidden = hide;
   if (hide) return;
@@ -124,17 +132,26 @@ function renderOnboard() {
     <div class="ob-head">
       <div class="ob-txt">
         <h2>${all ? 'All hands on deck, Captain! 🎉' : 'Welcome to Harpoon, Captain!'}</h2>
-        <p>${all ? "You're all set. Your whales are on the board and the crew gets briefed in Slack." : `Three steps and you're hunting.${mode === 'demo' ? ' Until then, these are demo whales (no real whales were harmed).' : ''}`}</p>
+        <p>${all ? (solo ? "You're all set. Your whales are on the board, ready for your next pipeline meeting." : "You're all set. Your whales are on the board and the crew gets briefed in Slack.")
+                 : `Three steps and you're hunting. It's free.${mode === 'demo' ? ' Until then, these are demo whales (no real whales were harmed).' : ''}`}</p>
+        <div class="ob-who" role="group" aria-label="Who is Harpoon for?"><span>Setting up for</span>
+          <button type="button" class="chip" data-who="team" aria-pressed="${!solo}">👥 My team</button>
+          <button type="button" class="chip" data-who="solo" aria-pressed="${solo}">🙋 Just me (SDR, BDR, AE)</button>
+        </div>
       </div>
       <div class="ob-prog"><span>${n} of ${steps.length} done</span><div class="ob-bar" role="progressbar" aria-valuemin="0" aria-valuemax="${steps.length}" aria-valuenow="${n}" aria-label="Getting started"><i style="--p:${Math.round(n / steps.length * 100)}%"></i></div></div>
     </div>
     <ol class="ob-steps">${steps.map((x, i) => `
       <li class="${x.done ? 'done' : i === now ? 'now' : ''}">
-        <h3><span class="ob-n">${x.done ? '✓' : i + 1}</span>${x.title}</h3>
+        <h3><span class="ob-n">${x.done ? '✓' : i + 1}</span>${x.title}${x.optional ? ' <span class="ob-opt">Optional</span>' : ''}</h3>
         <p>${x.text}</p>
-        ${x.done ? '<span class="ok">Done</span>' : `<button class="btn small${i === now ? ' primary pulse' : ''}" type="button" data-open="${x.open}">${x.btn}</button>`}
+        ${x.done ? `<span class="ok">${x.optional && S.slackSkipped && !S.webhook ? 'Skipped. Add it any time in Settings.' : 'Done'}</span>`
+                 : `<div class="ob-acts"><button class="btn small${i === now ? ' primary pulse' : ''}" type="button" data-open="${x.open}">${x.btn}</button>${x.optional ? '<button class="ob-skip" type="button" data-ob="skip">Skip for now</button>' : ''}</div>`}
       </li>`).join('')}
     </ol>`;
+  el.querySelectorAll('[data-who]').forEach(b => b.onclick = async () => { S.hunting = b.dataset.who; await saveS(); render(); });
+  const skip = el.querySelector('[data-ob="skip"]');
+  if (skip) skip.onclick = async () => { S.slackSkipped = true; await saveS(); renderOnboard(); };
   if (all) el.querySelector('[data-ob="hide"]').onclick = async () => {
     S.welcomeHidden = true; await saveS(); renderOnboard(); renderBanners();
     say('Happy hunting, Captain!');
@@ -477,9 +494,14 @@ function openShare() {
   $('shareNote').innerHTML = !IS_EXT ? '<p class="banner demo">This is the online demo, so nothing can be sent. Install the extension to post to your Slack.</p>'
     : !S.webhook ? '<p class="banner warn">Add your Slack webhook link in Settings first. <button class="btn small" type="button" data-open="settings">Open Settings</button></p>' : '';
   $('shareWhere').textContent = ready ? 'Posts to the channel your webhook belongs to.' : '';
+  $('shareIntro').textContent = S.hunting === 'solo'
+    ? 'Your recap. Send it to Slack (to yourself, or a channel your sales manager or CRO reads), or copy it into an email or Teams.'
+    : 'This is exactly what your team will see in Slack. Or copy it into an email or Teams.';
   drawSchedule();
+  drawSnap();
   $('shareDlg').showModal();
 }
+function drawSnap() { drawSnapshot($('snapCanvas'), accounts, S, { hideNames: $('snapHide').checked, demo: mode === 'demo' }); }
 function drawSchedule() {
   document.querySelectorAll('input[name="freq"]').forEach(r => { r.checked = r.value === S.schedule.freq; });
   $('shareTime').value = S.schedule.time;
@@ -507,7 +529,7 @@ function openSettings() {
   $('disconnect').hidden = !S.token;
   $('mentionsIn').checked = !!S.mentions;
   $('hotT').value = S.hotTouches; $('hotD').value = S.hotDays; $('coldD').value = S.coldDays;
-  $('curIn').value = S.currency; $('skinIn').value = S.skin;
+  $('curIn').value = S.currency; $('skinIn').value = S.skin; $('huntIn').value = S.hunting || 'team';
   $('demoSec').hidden = mode !== 'demo';
   $('hsResult').innerHTML = mode === 'live' ? '<p class="okline">✅ Connected to HubSpot.</p>' : '';
   $('slackResult').innerHTML = '';
@@ -681,7 +703,7 @@ function bind() {
     }
   });
 
-  // schedule (inside the Share to Slack window)
+  // schedule (inside the Share window)
   document.querySelectorAll('input[name="freq"]').forEach(r => r.onchange = async () => {
     await setSchedule(r.value);
     say(r.value === 'off' ? 'Automatic notifications off. You can still send one any time.'
@@ -764,6 +786,24 @@ function bind() {
 
   // share
   $('sendNow').onclick = sendNow;
+  $('snapHide').onchange = drawSnap;
+  $('snapCopy').onclick = async () => {
+    try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': snapshotBlob($('snapCanvas')) })]); say('Image copied. Paste it into Slack, an email, Teams or LinkedIn.'); }
+    catch { say("Couldn't copy the image here. Use Download image instead."); }
+  };
+  $('snapSave').onclick = async () => {
+    const blob = await snapshotBlob($('snapCanvas'));
+    const url = URL.createObjectURL(blob), link = document.createElement('a');
+    link.href = url; link.download = `harpoon-whales-${new Date().toISOString().slice(0, 10)}.png`;
+    document.body.appendChild(link); link.click(); link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    say('Saved to your Downloads folder.');
+  };
+  $('copyRecap').onclick = async () => {
+    const text = $('sharePreview').innerText.trim();
+    try { await navigator.clipboard.writeText(text); say('Copied. Paste it into an email, Teams or your 1:1 notes.'); }
+    catch { const r = document.createRange(); r.selectNodeContents($('sharePreview')); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); say('Selected. Press Cmd+C (or Ctrl+C) to copy.'); }
+  };
 
   // settings
   $('testHs').onclick = testHs;
@@ -776,5 +816,6 @@ function bind() {
   num('hotT', 'hotTouches', 1, 99); num('hotD', 'hotDays', 1, 365); num('coldD', 'coldDays', 1, 999);
   $('curIn').onchange = async () => { S.currency = $('curIn').value; await saveS(); render(); };
   $('skinIn').onchange = async () => { S.skin = $('skinIn').value; document.body.dataset.skin = S.skin; await saveS(); };
+  $('huntIn').onchange = async () => { S.hunting = $('huntIn').value; await saveS(); render(); };
   $('resetDemo').onclick = async () => { demoState = {}; await saveDemo(); render(); badge(); say('Demo board reset: Moby Dick and the other 19 whales are back.'); };
 }

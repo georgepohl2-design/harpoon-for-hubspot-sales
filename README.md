@@ -8,7 +8,7 @@
 - **Brief the crew on a schedule:** a Slack notification every morning or every Monday, saying who's doing what and who to go after next.
 - **Put it on the office TV,** so the whole team can see it all day.
 
-A free Chrome extension that reads from HubSpot. **[Try the demo in your browser →](https://georgepohl2-design.github.io/harpoon/board.html)** (made-up companies, nothing to install).
+**Free.** A Chrome extension that reads from HubSpot, for a whole sales team or for one rep hunting their own whales. **[Try the demo in your browser →](https://georgepohl2-design.github.io/harpoon/board.html)** (made-up companies, nothing to install).
 
 ---
 
@@ -26,7 +26,13 @@ I've built this by hand in past jobs: target-account visit alerts, red/amber/gre
 
 ## Who it's for
 
-Founders, CROs, sales leaders, heads of marketing, commercial directors: anyone who runs a commercial team and needs to know, without opening ten HubSpot reports, whether the team is actually working the accounts that matter. Simple enough that someone new to ABM gets it in a minute.
+**Teams.** Founders, CROs, sales leaders, heads of marketing, commercial directors: anyone who runs a commercial team and needs to know, without opening ten HubSpot reports, whether the team is actually working the accounts that matter.
+
+**Just you.** SDRs, BDRs, account executives and BD people working their own list of target accounts. Pick **Just me** when you set up, and Harpoon becomes your own board and your own weekly Slack recap: your whales, who you've contacted, your open pipeline and what you've won. Send the recap to yourself or to a channel your sales manager or CRO reads, copy it into an email, or bring the board up in your 1:1 or pipeline meeting. It shows, in one look, that you're on top of your accounts.
+
+Simple enough that someone new to ABM gets it in a minute.
+
+**It's free.** No paid plan, no account to sign up for.
 
 ## What it does
 
@@ -61,7 +67,7 @@ Paste company names or websites (most important first), upload a CSV (a `Company
 
 ### 🔔 The Slack notification
 
-Press **Share to Slack** to see a preview and send it now, or to set it to go out automatically **every weekday morning** or **every Monday**. The Monday one looks like this:
+Press **Share** to see a preview, copy it into an email or Teams, send it now, or set it to go out automatically **every weekday morning** or **every Monday**. The Monday one looks like this:
 
 ```
 🐋 Ahoy crew! Whales to hunt: 20
@@ -81,7 +87,13 @@ Who's doing what
 Open the target account list in Harpoon →
 ```
 
+In **Just me** mode it says "Ahoy Captain! Your whales to hunt", adds your open pipeline and what you've won, and skips "Who's doing what" and the @-mentions.
+
 (The weekday version skips "Who's doing what" to stay short. "Who's doing what" never goes past five lines. "Next to hunt" is your highest-ranked whale that nobody has contacted, nobody owns, or is going cold.)
+
+### 📸 Snapshot image
+
+Also under **Share**: one tidy picture of the hunt, with your whales, how many you've contacted, what you've won, your open pipeline and your top five. Copy it or download it for your 1:1, your sales manager or CRO, or a LinkedIn post. Tick **Hide company names** before posting in public, and your top five become Whale #1 to #5.
 
 ### 📺 Big screen
 
@@ -105,7 +117,7 @@ To update later, download the ZIP again, replace the folder, and press ↻ on th
 
 Harpoon only ever **reads** from HubSpot. It never creates, changes or deletes anything, and it never reads what an email says.
 
-You'll need to be a HubSpot **Super Admin** to make the key. Try it on a test account first if you like: a free HubSpot account with a few made-up companies works fine.
+You'll need to be a HubSpot **Super Admin** to make the key. Not an admin (most SDRs and AEs aren't)? Send your admin these steps: it takes them 5 minutes, and the key can only read. Try it on a test account first if you like: a free HubSpot account with a few made-up companies works fine.
 
 1. In HubSpot, open **Settings** (the cog) → **Integrations** → **Private Apps**. In some newer accounts it's under **Development → Legacy apps**.
 2. Create a private app called **Harpoon**.
@@ -127,7 +139,7 @@ HubSpot sometimes moves these menus around. If a step doesn't match what you see
 3. Pick the channel (for example `#target-accounts`) and click **Allow**.
 4. Copy the webhook link (it starts with `https://hooks.slack.com/`).
 5. In Harpoon, open **⚙️ Settings**, paste it and press **Save & send test message**.
-6. Press **Share to Slack** and choose when it goes out automatically.
+6. Press **Share** and choose when it goes out automatically.
 
 **To really @-mention people:** in Slack, click a person's name → **⋮** → **Copy member ID**, and paste it next to their name in Settings. Without it, Harpoon just writes their name.
 
@@ -159,7 +171,6 @@ flowchart LR
 
 ## Roadmap
 
-- **Free to start, upgrade later:** track 10 accounts free, all 100 on a paid plan. No payments are built yet.
 - A proper **Connect to HubSpot** button (OAuth) instead of pasting a key.
 - Notifications that go out even when your laptop is shut (needs a small server).
 - A **"why now?"** line per account, written by AI from its recent activity.
