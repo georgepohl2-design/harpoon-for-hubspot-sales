@@ -3,25 +3,31 @@
 <head>
 <meta charset="utf-8">
 <title>Harpoon cover</title>
-<!-- Used once to render docs/cover.png for the README. Not part of the extension. -->
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Inter:wght@500;600&display=swap">
+<!-- Renders docs/cover.png, the first picture on the GitHub page. Not part of the extension. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Inter:wght@500;600;700&display=swap">
 <style>
   html, body { margin: 0; }
-  body { width: 1600px; height: 900px; overflow: hidden; background: #6E3BD8; font-family: Inter, system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; }
-  header { display: flex; align-items: center; gap: 18px; margin: 30px 0 4px; }
-  header img { width: 104px; height: 104px; background: #FAF5EA; border-radius: 50%; }
-  h1 { margin: 0; font-family: Fredoka, sans-serif; font-weight: 700; font-size: 84px; color: #fff; }
-  p.tag { margin: 0 0 22px; color: #EFE7FB; font-size: 25px; font-weight: 500; }
-  .frame { width: 1400px; height: 690px; border-radius: 16px; overflow: hidden; background: #FAF5EA; box-shadow: 0 24px 60px -20px rgba(0,0,0,.45); }
-  .bar { height: 34px; background: #EEE7DA; display: flex; align-items: center; gap: 8px; padding: 0 14px; }
+  body { width: 1600px; height: 900px; overflow: hidden; position: relative; font-family: Inter, system-ui, sans-serif; display: flex; flex-direction: column; align-items: center;
+    background: radial-gradient(1200px 500px at 50% -10%, #8A5CF0 0%, rgba(138,92,240,0) 70%), #5F2FC7; }
+  header { display: flex; align-items: center; gap: 18px; margin-top: 34px; }
+  header img { width: 84px; height: 84px; background: #FAF5EA; border-radius: 50%; box-shadow: 0 6px 18px -8px rgba(0,0,0,.4); }
+  h1 { margin: 0; font-family: Fredoka, sans-serif; font-weight: 700; font-size: 72px; line-height: 1; color: #fff; letter-spacing: .5px; }
+  p.hook { margin: 14px 0 0; font: 700 46px/1 Fredoka, sans-serif; color: #FFD66B; letter-spacing: .3px; }
+  p.tag { margin: 16px 0 0; max-width: 1120px; text-align: center; color: #F3EDFD; font-size: 27px; line-height: 1.38; font-weight: 500; text-wrap: balance; }
+  p.tag b { color: #fff; font-weight: 700; }
+  p.tag em { font-style: normal; font-weight: 700; color: #2A1660; background: #FFD66B; border-radius: 10px; padding: 0 10px; white-space: nowrap; }
+  .frame { position: absolute; left: 100px; top: 312px; width: 1400px; height: 640px; border-radius: 18px 18px 0 0; overflow: hidden; background: #FAF5EA;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.18), 0 30px 70px -20px rgba(20,5,60,.6); }
+  .bar { height: 30px; background: #EEE7DA; display: flex; align-items: center; gap: 8px; padding: 0 16px; }
   .bar i { width: 11px; height: 11px; border-radius: 50%; background: #D8CFC0; display: block; }
-  .clip { width: 1400px; height: 656px; overflow: hidden; }
-  iframe { width: 1600px; height: 750px; border: 0; transform: scale(.875); transform-origin: 0 0; }
+  .clip { width: 1400px; height: 630px; overflow: hidden; }
+  iframe { width: 1280px; height: 600px; border: 0; transform: scale(1.09375); transform-origin: 0 0; }
 </style>
 </head>
 <body>
   <header><img src="../icons/harpoon-512.png" alt=""><h1>Harpoon</h1></header>
-  <p class="tag">Your top 100 target accounts on one board. A Slack nudge that gets sales on it.</p>
+  <p class="hook">Harpoon that whale!</p>
+  <p class="tag">A <b>free</b> Chrome extension for HubSpot that helps sales and marketing teams focus on their most important companies <em>(whales)</em></p>
   <div class="frame"><div class="bar"><i></i><i></i><i></i></div><div class="clip"><iframe src="../board.html?clean&cover"></iframe></div></div>
 </body>
 </html>

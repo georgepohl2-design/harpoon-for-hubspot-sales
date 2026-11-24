@@ -3,7 +3,7 @@
   "name": "Harpoon: Target Account Board",
   "short_name": "Harpoon",
   "version": "0.1.0",
-  "description": "Your top 100 target accounts on one board, plus a Slack notification that gets your sales team on it. Reads from HubSpot.",
+  "description": "A free Chrome extension for HubSpot that helps sales and marketing teams focus on their most important companies (whales).",
   "action": {
     "default_title": "Harpoon",
     "default_icon": {
@@ -30,7 +30,7 @@
   ],
   "content_scripts": [
     {
-      "matches": ["https://georgepohl2-design.github.io/harpoon/open/*"],
+      "matches": ["https://georgepohl2-design.github.io/harpoon-for-hubspot-sales/open/*"],
       "js": ["content/open-link.js"],
       "run_at": "document_start"
     }

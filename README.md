@@ -1,14 +1,16 @@
 # Harpoon
 
-![Harpoon: a board of target accounts coloured won, being contacted and not contacted](docs/cover.png)
+![Harpoon: a free Chrome extension for HubSpot that helps sales and marketing teams focus on their most important companies (whales)](docs/cover.png)
 
-**Your top 100 target accounts on one board. A Slack nudge that gets sales on it.**
+### Harpoon that whale! 🐋
 
-- **See every hunt at a glance:** your whales ranked #1 to #100, green for won, amber for being contacted, red for nobody's on it.
+**Your top accounts on one board. A Slack nudge that gets sales on them.**
+
+- **See every hunt at a glance:** your whales ranked from #1, the most important, green for won, amber for being contacted, red for nobody's on it.
 - **Brief the crew on a schedule:** a Slack notification every morning or every Monday, saying who's doing what and who to go after next.
 - **Put it on the office TV,** so the whole team can see it all day.
 
-**Free.** A Chrome extension that reads from HubSpot, for a whole sales team or for one rep hunting their own whales. **[Try the demo in your browser →](https://georgepohl2-design.github.io/harpoon/board.html)** (made-up companies, nothing to install).
+**Free.** A Chrome extension that reads from HubSpot, for a whole sales team or for one rep hunting their own whales. **[Try the demo in your browser →](https://georgepohl2-design.github.io/harpoon-for-hubspot-sales/board.html)** (made-up companies, nothing to install).
 
 ---
 
@@ -57,6 +59,8 @@ On each tile: ✉️ emails, 📞 calls and 🤝 meetings logged, the deal stage
 - Filter by colour, 🔥 or 🥶, search, or switch to a list view.
 - **What changed:** the red number on the toolbar whale is how many whales have changed since you last looked. Each one gets a tag on its tile: **🏆 Deal won!**, **👋 First contact**, **🔥 Heating up**, **🥶 Getting cold** or **Moved to Proposal** (whatever the new deal stage is). The hover card says what it was before. A won deal gets the full celebration: a harpoon strikes the tile and the confetti flies. Hover the tile and it's marked as seen, or press **Mark all seen**. Harpoon checks HubSpot once an hour while Chrome is open, and doesn't count whales you've just added.
 
+![What changed: tiles tagged Deal won, Heating up, First contact, Getting cold and Moved to Proposal](docs/alerts.png)
+
 **100 whales is the max, but we recommend starting with 20.** Need more than 100? That's trawling, not harpooning. (Try adding number 101.)
 
 **Hover the Harpoon logo** at the top of the board and watch what happens. Keep an eye on the waves along the top, too.
@@ -95,6 +99,8 @@ In **Just me** mode it says "Ahoy Captain! Your whales to hunt", adds your open 
 
 Also under **Share**: one tidy picture of the hunt, with your whales, how many you've contacted, what you've won, your open pipeline and your top five. Copy it or download it for your 1:1, your sales manager or CRO, or a LinkedIn post. Tick **Hide company names** before posting in public, and your top five become Whale #1 to #5.
 
+![The snapshot image: whales to hunt, contacted, won, open pipeline and the top five](docs/snapshot.png)
+
 ### 📺 Big screen
 
 Press **📺 Big screen** for TV mode: full screen, big text, no buttons, refreshing itself every 10 minutes. Then cast the tab to the office TV. Steps below.
@@ -104,10 +110,10 @@ Press **📺 Big screen** for TV mode: full screen, big text, no buttons, refres
 It's not on the Chrome Web Store yet, so you load it yourself. It's easier than it sounds.
 
 1. **Download it.** On this page, click the green **Code** button, then **Download ZIP**.
-2. **Unzip it.** Double-click the downloaded file. You'll get a folder called `harpoon-main`.
+2. **Unzip it.** Double-click the downloaded file. You'll get a folder called `harpoon-for-hubspot-sales-main`.
 3. **Open Chrome's extensions page.** Type `chrome://extensions` in the address bar and press Enter.
 4. **Turn on Developer mode** with the switch in the top-right corner.
-5. **Click "Load unpacked"** (top left) and choose the `harpoon-main` folder.
+5. **Click "Load unpacked"** (top left) and choose the `harpoon-for-hubspot-sales-main` folder.
 6. **Pin the whale.** Click the puzzle-piece icon next to the address bar, then the pin next to **Harpoon**.
 7. **Click the whale.** The board opens in demo mode with 20 made-up whales (Moby Dick leads the pod), plus three welcome steps to get you set up: connect HubSpot, add your whales, set up Slack. Have a play.
 
@@ -158,7 +164,7 @@ Casting streams from the computer you cast from, so that computer has to stay on
 ```mermaid
 flowchart LR
     A[Your HubSpot<br>companies, owners, deals,<br>emails, calls, meetings] -->|read-only, your own key| B[Harpoon in your Chrome]
-    L[Your list of up to 100<br>target accounts] --> B
+    L[Your list of<br>target accounts] --> B
     B --> C[The board<br>green / amber / red]
     B -->|every weekday or Monday,<br>or when you press Share| D[Your team's Slack channel]
     C -->|Cast or HDMI| E[The office TV]

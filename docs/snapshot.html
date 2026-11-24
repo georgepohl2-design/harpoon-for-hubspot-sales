@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>Harpoon snapshot</title>
+<!-- Renders docs/snapshot.png for the README. Opens Share on the demo board and copies the real snapshot image,
+     so it needs a local web server (same origin), e.g. python3 -m http.server in the harpoon folder. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Inter:wght@500;600;700&display=swap">
+<style>
+  html, body { margin: 0; }
+  body { width: 1600px; height: 900px; overflow: hidden; box-sizing: border-box; padding: 0 70px 0 80px; display: grid; grid-template-columns: 1fr 940px; gap: 50px; align-items: center;
+    font-family: Inter, system-ui, sans-serif; background: radial-gradient(900px 600px at 80% 50%, #8A5CF0 0%, rgba(138,92,240,0) 70%), #5F2FC7; }
+  .copy { display: flex; flex-direction: column; gap: 22px; color: #F3EDFD; }
+  .eyebrow { font-weight: 700; font-size: 15px; letter-spacing: .12em; color: #FFD66B; }
+  h1 { margin: 0; font: 700 58px/1.06 Fredoka, sans-serif; color: #fff; text-wrap: balance; }
+  p { margin: 0; font-size: 21px; line-height: 1.45; font-weight: 500; }
+  .who { display: flex; flex-wrap: wrap; gap: 8px; }
+  .who span { font-size: 15px; font-weight: 600; color: #fff; background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.25); border-radius: 99px; padding: 6px 12px; }
+  .shot { width: 940px; border-radius: 16px; box-shadow: 0 0 0 1px rgba(255,255,255,.2), 0 30px 70px -20px rgba(20,5,60,.65); display: block; }
+</style>
+</head>
+<body>
+  <div class="copy">
+    <div class="eyebrow">SHARE THE HUNT</div>
+    <h1>Show you're doing good work</h1>
+    <p>One click turns your board into a tidy image: your whales, who's been contacted, open pipeline and deals won.</p>
+    <div class="who"><span>Your 1:1</span><span>Sales manager</span><span>CRO</span><span>Slack</span><span>LinkedIn</span></div>
+  </div>
+  <img class="shot" id="shot" alt="">
+  <iframe id="src" src="../board.html?clean&cover" style="position:absolute;left:-3000px;top:0;width:1280px;height:900px;border:0"></iframe>
+<script>
+const src = document.getElementById('src');
+src.addEventListener('load', () => setTimeout(() => {
+  const d = src.contentDocument;
+  d.getElementById('shareBtn').click();
+  setTimeout(() => { document.getElementById('shot').src = d.getElementById('snapCanvas').toDataURL('image/png'); document.title = 'ready'; }, 1500);
+}, 2500));
+</script>
+</body>
+</html>

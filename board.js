@@ -12,7 +12,7 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const LOGT = { email: '✉️ Email', call: '📞 Call', meeting: '🤝 Meeting' };
 const HEAT = { hot: '🔥', cold: '🥶', '': '' };
-const REPO = 'https://github.com/georgepohl2-design/harpoon';
+const REPO = 'https://github.com/georgepohl2-design/harpoon-for-hubspot-sales';
 
 let S;                 // settings
 let mode = 'demo';     // 'demo' | 'live'
@@ -177,6 +177,7 @@ function renderOnboard() {
 
 function renderBanners() {
   const b = [];
+  if (new URLSearchParams(location.search).has('cover')) { document.body.classList.add('cover'); $('banners').innerHTML = ''; return; } // README pictures: board only
   if (!IS_EXT && !new URLSearchParams(location.search).has('clean')) b.push(`<div class="banner demo">👋 This is the online demo, with made-up companies. Install the Chrome extension to connect your own HubSpot and Slack. <a class="btn small" href="${REPO}#install-it-no-coding-needed-about-5-minutes" target="_blank" rel="noopener">How to install</a></div>`);
   else if (mode === 'demo' && $('onboard').hidden) b.push(`<div class="banner demo">Demo mode: these are made-up companies, and no real whales were harmed. Connect HubSpot in Settings to see your own. <button class="btn small primary pulse" type="button" data-open="settings">Connect HubSpot</button></div>`);
   const nChg = Object.keys(watch.changes || {}).length;
