@@ -3,7 +3,7 @@ import * as store from './lib/store.js';
 import { IS_EXT } from './lib/store.js';
 import { logoSVG } from './lib/logo.js';
 import { demoAccounts, demoSearch, demoTargetAccounts, demoWatch } from './lib/demo.js';
-import { CAP, LABEL, heat, money, moneyFull, ago, daysSince, buildRundown, rundownToHTML, rundownToSlack, nextDue, scheduleLabel, trackChanges, describeChange, changeTag, stateOf } from './lib/model.js';
+import { CAP, LABEL, heat, money, moneyFull, ago, daysSince, buildRundown, rundownToHTML, rundownToSlack, nextDue, scheduleLabel, trackChanges, describeChange, changeTag, changeKind, stateOf } from './lib/model.js';
 import * as hubspot from './lib/hubspot.js';
 import { sendSlack } from './lib/slack.js';
 import { drawSnapshot, snapshotBlob } from './lib/snapshot.js';
@@ -237,7 +237,7 @@ function tileHTML(a) {
   if (a.s === 'grey') el = `<button type="button" class="tile s-grey" data-act="link">${inner}</button>`;
   else if (a.url) el = `<a class="tile s-${a.s}" href="${esc(a.url)}" target="_blank" rel="noopener">${inner}</a>`;
   else el = `<button type="button" class="tile s-${a.s}" data-act="open">${inner}</button>`;
-  return `<div class="tw" data-key="${esc(a.key)}" draggable="true">${el}${watch.changes && watch.changes[a.key] ? `<span class="chg" title="${esc(describeChange(watch.changes[a.key]))}" aria-label="Changed: ${esc(describeChange(watch.changes[a.key]))}">${esc(changeTag(watch.changes[a.key]))}</span>` : ''}<i class="cb k1"></i><i class="cb k2"></i><i class="cb k3"></i><i class="cb k4"></i><button class="x" type="button" data-act="remove" title="Throw it back (remove)" aria-label="Remove ${esc(a.name)}">×</button></div>`;
+  return `<div class="tw" data-key="${esc(a.key)}" draggable="true">${el}${watch.changes && watch.changes[a.key] ? `<span class="chg k-${changeKind(watch.changes[a.key])}" title="${esc(describeChange(watch.changes[a.key], a, S.currency))}" aria-label="Changed: ${esc(describeChange(watch.changes[a.key], a, S.currency))}">${esc(changeTag(watch.changes[a.key]))}</span>` : ''}<i class="cb k1"></i><i class="cb k2"></i><i class="cb k3"></i><i class="cb k4"></i><button class="x" type="button" data-act="remove" title="Throw it back (remove)" aria-label="Remove ${esc(a.name)}">×</button></div>`;
 }
 
 function companyLink(a) {
@@ -255,7 +255,7 @@ function renderBoard() {
   const tiles = S.view !== 'list' || document.body.classList.contains('tv'); // TV mode always shows tiles
   $('grid').hidden = !tiles || empty;
   $('tablewrap').hidden = tiles || empty;
-  if (tiles) $('grid').innerHTML = list.map(tileHTML).join('');
+  if (tiles) { $('grid').innerHTML = list.map(tileHTML).join(''); requestAnimationFrame(celebrateWins); }
   else {
     $('tablewrap').innerHTML = `<table class="list-t"><thead><tr><th>#</th><th>Status</th><th>Company</th><th></th><th>Owner</th><th>Lifecycle</th><th>Deal stage</th><th>Touches</th><th class="num">Last touch</th><th class="num">Value</th><th></th></tr></thead><tbody>${
       list.map(a => `<tr data-key="${esc(a.key)}"><td><input class="rkin" type="number" min="1" max="${accounts.length}" value="${a.rank}" aria-label="Priority of ${esc(a.name)}" title="Type a new number to re-rank"></td><td><span class="pill" style="background:var(--${a.s}-bg);color:var(--${a.s})"><span class="dot" style="background:currentColor"></span>${LABEL[a.s]}</span></td>
@@ -308,7 +308,7 @@ function card(a) {
   const h = heat(a, S);
   let out = `<h4><span>#${a.rank} ${esc(a.name)}</span><span>${HEAT[h]}</span></h4>`;
   const chg = watch.changes && watch.changes[a.key];
-  if (chg) out += `<div class="chgline">New: ${esc(describeChange(chg))} <span>· ${agoMin(chg.at)}</span></div>`;
+  if (chg) out += `<div class="chgline k-${changeKind(chg)}">${esc(describeChange(chg, a, S.currency))} <span>· ${agoMin(chg.at)}</span></div>`;
   if (a.s === 'amber') {
     out += `<div class="sub" style="color:var(--amber)">Being contacted${a.t ? ` · ${a.t} touches` : ''}</div>`;
     out += `<dl><dt>Owner</dt><dd>${esc(a.owner || '–')}</dd><dt>Last touch</dt><dd>${ago(a.last)}</dd><dt>Deal</dt><dd>${a.deal ? (a.deal.amount ? moneyFull(a.deal.amount, S.currency) : 'Open') : 'None yet'}</dd>${a.deal ? `<dt>Stage</dt><dd>${esc(a.deal.stage)}</dd>` : ''}</dl>`;
@@ -643,6 +643,39 @@ document.addEventListener('visibilitychange', async () => {
 
 
 
+// ---------- 🏆 deal won: the harpoon strikes and the confetti flies ----------
+const celebrated = new Set(); // each win gets its big moment once per visit (hover the tile to see it again)
+const CONFETTI = ['#6E3BD8', '#9A72F0', '#178A4C', '#F2B705', '#D23B3B', '#B06A00', '#43B3E0'];
+const HARPOON_SVG = `<svg viewBox="0 0 120 120" aria-hidden="true"><g transform="rotate(135 60 60)"><path d="M5 60H103" stroke="#6E3BD8" stroke-width="7" stroke-linecap="round"/><path d="M8 55.5H16V64.5H8Z" fill="#6E3BD8"/><path d="M119 60C114 52 107 45.5 97.5 39.5C101 45 104 50.5 106 56.5H99V63.5H106.5L104.5 68.5C110 66.5 115 63.5 119 60Z" fill="#6E3BD8" stroke="#6E3BD8" stroke-width="1.4" stroke-linejoin="round"/></g></svg>`;
+function celebrate(tw, delay = 0) {
+  if (!tw || calmMotion()) return;
+  setTimeout(() => {
+    const h = document.createElement('span'); h.className = 'strike'; h.innerHTML = HARPOON_SVG; tw.appendChild(h);
+    const tile = tw.querySelector('.tile');
+    setTimeout(() => {
+      if (tile) { tile.classList.remove('thud'); void tile.offsetWidth; tile.classList.add('thud'); }
+      for (let i = 0; i < 46; i++) {
+        const c = document.createElement('i'); c.className = 'confetti';
+        const ang = Math.random() * Math.PI * 2, dist = 50 + Math.random() * 110;
+        c.style.cssText = `background:${CONFETTI[i % CONFETTI.length]};--dx:${(Math.cos(ang) * dist).toFixed(0)}px;--dy:${(Math.sin(ang) * dist * .8 - 50).toFixed(0)}px;--r:${(Math.random() * 720 - 360).toFixed(0)}deg;animation-delay:${Math.round(Math.random() * 120)}ms;${i % 3 === 0 ? 'border-radius:50%;width:7px;height:7px;' : ''}`;
+        tw.appendChild(c); setTimeout(() => c.remove(), 1900);
+      }
+    }, 380);
+    setTimeout(() => h.remove(), 2600);
+  }, delay);
+}
+function celebrateWins() {
+  let n = 0;
+  Object.entries(watch.changes || {}).forEach(([key, c]) => {
+    if (changeKind(c) !== 'won' || celebrated.has(key)) return;
+    const tw = document.querySelector(`.tw[data-key="${CSS.escape(key)}"]`); if (!tw) return;
+    celebrated.add(key);
+    if (n === 0) { const a = accounts.find(x => x.key === key); if (a) say(`🏆 Deal won: ${a.name}! Harpoon struck true.`); }
+    celebrate(tw, 500 + n++ * 900);
+  });
+}
+function calmMotion() { return matchMedia('(prefers-reduced-motion: reduce)').matches; }
+
 // ---------- re-ranking ----------
 async function moveTo(key, rank) {
   const from = accounts.findIndex(a => a.key === key);
@@ -768,7 +801,12 @@ function bind() {
     if (act.dataset.act === 'open') openDemoNote(key);
     if (act.dataset.act === 'seen-all') markSeen(Object.keys(watch.changes || {}));
   });
-    $('grid').addEventListener('mouseover', e => { const tw = e.target.closest('.tw'); if (!tw) return; showCard(tw); });
+    let overTw = null;
+  $('grid').addEventListener('mouseover', e => {
+    const tw = e.target.closest('.tw'); if (!tw) return; showCard(tw);
+    if (tw !== overTw) { overTw = tw; const c = watch.changes && watch.changes[tw.dataset.key]; if (changeKind(c) === 'won') celebrate(tw); }
+  });
+  $('grid').addEventListener('mouseleave', () => { overTw = null; });
   $('grid').addEventListener('focusin', e => { const tw = e.target.closest('.tw'); if (tw) showCard(tw); });
   const hideCard = () => { $('pop').hidden = true; };
   $('grid').addEventListener('mouseout', e => { const from = e.target.closest('.tw'); if (from && (!e.relatedTarget || !from.contains(e.relatedTarget))) { hideCard(); markSeen(from.dataset.key); } });

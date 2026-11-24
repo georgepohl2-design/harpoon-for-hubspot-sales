@@ -55,7 +55,7 @@ On each tile: ✉️ emails, 📞 calls and 🤝 meetings logged, the deal stage
 - **Ranked by priority:** every whale has a number, and #1 is the one you want most. Drag a tile to re-rank, or type a new number in list view. Or sort A–Z.
 - Stats across the top: how many whales you're hunting, won and contacted percentages, open pipeline, won revenue.
 - Filter by colour, 🔥 or 🥶, search, or switch to a list view.
-- **What changed:** the red number on the toolbar whale is how many whales have changed since you last looked: won, first contact made, gone quiet, gone 🔥 hot or 🥶 cold. Each one gets a small tag on its tile ("Won", "Contacted", "Went hot"), and the hover card says what it was before. Hover the tile and it's marked as seen, or press **Mark all seen**. Harpoon checks HubSpot once an hour while Chrome is open, and doesn't count whales you've just added.
+- **What changed:** the red number on the toolbar whale is how many whales have changed since you last looked. Each one gets a tag on its tile: **🏆 Deal won!**, **👋 First contact**, **🔥 Heating up**, **🥶 Getting cold** or **Moved to Proposal** (whatever the new deal stage is). The hover card says what it was before. A won deal gets the full celebration: a harpoon strikes the tile and the confetti flies. Hover the tile and it's marked as seen, or press **Mark all seen**. Harpoon checks HubSpot once an hour while Chrome is open, and doesn't count whales you've just added.
 
 **100 whales is the max, but we recommend starting with 20.** Need more than 100? That's trawling, not harpooning. (Try adding number 101.)
 

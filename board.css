@@ -97,6 +97,27 @@ body.tv .onboard { display: none !important; }
 .chg::before { content: ""; position: absolute; left: 7px; top: 50%; width: 5px; height: 5px; margin-top: -2.5px; border-radius: 50%; background: #fff; }
 .chg::after { content: ""; position: absolute; inset: -5px; border-radius: 99px; border: 2px solid var(--violet); opacity: 0; animation: chg-ring 2.4s ease-out 2; }
 .tw:hover .chg { opacity: .35; }
+.chg.k-won { background: linear-gradient(90deg, #178A4C, #2FA866); font-size: 12px; padding: 4px 10px 4px 10px; top: -11px; box-shadow: 0 4px 12px -4px rgba(23,138,76,.6); }
+.chg.k-won::before { display: none; }
+.chg.k-won::after { border-color: #178A4C; }
+.chg.k-hot { background: #D9480F; } .chg.k-hot::after { border-color: #D9480F; }
+.chg.k-cold { background: #2B7BB9; } .chg.k-cold::after { border-color: #2B7BB9; }
+.chg.k-contacted { background: var(--amber); } .chg.k-contacted::after { border-color: var(--amber); }
+.chg.k-hot::before, .chg.k-cold::before, .chg.k-contacted::before, .chg.k-stage::before { display: none; }
+.chg.k-hot, .chg.k-cold, .chg.k-contacted, .chg.k-stage { padding-left: 8px; }
+.hc .chgline.k-won { background: var(--won-bg); color: var(--won); }
+.hc .chgline.k-hot { background: #FDE6D8; color: #B23C0A; }
+.hc .chgline.k-cold { background: #DDEEFA; color: #1F5F90; }
+.hc .chgline.k-contacted { background: var(--amber-bg); color: var(--amber); }
+/* deal won: a harpoon flies in, the tile takes the hit, confetti everywhere */
+.strike { position: absolute; top: -34px; right: -30px; width: 70px; height: 70px; z-index: 30; pointer-events: none; animation: strike-in .42s cubic-bezier(.5,0,.75,0) both, strike-out .5s ease-in 2.1s forwards; }
+.strike svg { width: 100%; height: 100%; display: block; filter: drop-shadow(0 3px 4px rgba(31,26,46,.3)); }
+@keyframes strike-in { from { transform: translate(90px, -90px); opacity: 0; } 30% { opacity: 1; } to { transform: translate(0, 0); opacity: 1; } }
+@keyframes strike-out { to { transform: translate(8px, -8px); opacity: 0; } }
+.tile.thud { animation: thud .45s ease-out; }
+@keyframes thud { 0% { transform: none; } 20% { transform: translate(-3px, 3px) rotate(-1.2deg) scale(.98); } 45% { transform: translate(2px, -1px) rotate(.8deg) scale(1.02); } 70% { transform: translate(-1px, 0) rotate(-.3deg); } 100% { transform: none; } }
+.confetti { position: absolute; left: 50%; top: 40%; width: 6px; height: 11px; border-radius: 2px; z-index: 29; pointer-events: none; animation: confetti 1.6s cubic-bezier(.15,.7,.4,1) both; }
+@keyframes confetti { 0% { transform: translate(0, 0) rotate(0) scale(.6); opacity: 1; } 55% { transform: translate(var(--dx), var(--dy)) rotate(var(--r)) scale(1); opacity: 1; } 100% { transform: translate(calc(var(--dx) * 1.15), calc(var(--dy) + 110px)) rotate(calc(var(--r) * 2)); opacity: 0; } }
 @keyframes chg-pop { 0% { transform: scale(.4); } 12% { transform: scale(1.15); } 20%, 100% { transform: scale(1); } }
 @keyframes chg-ring { 0% { transform: scale(.9); opacity: .7; } 60%, 100% { transform: scale(1.25); opacity: 0; } }
 .hc .chgline { font-size: 12.5px; font-weight: 700; color: var(--brand-text); background: var(--lavender); border-radius: 8px; padding: 5px 9px; margin-top: -2px; }
