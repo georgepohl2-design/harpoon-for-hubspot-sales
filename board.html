@@ -39,7 +39,7 @@
     <span class="updated" id="updated"></span>
   </div>
 
-  <div class="grid" id="grid"></div>
+  <div class="tiles" id="grid"></div>
   <div class="tablewrap" id="tablewrap" hidden></div>
   <div class="empty" id="empty" hidden></div>
   <div class="count" id="count"></div>
@@ -47,7 +47,13 @@
   <section class="shiplog" id="shiplog" aria-label="Ship's log"></section>
   <p class="legend" id="legend"></p>
 
+  <footer class="helpfoot">
+    <span>🍾 <b>Message in a bottle:</b> ideas, gripes, or a leak in the hull? We read every one (unless a whale gets to it first).</span>
+    <span class="hf-links"><a data-fb="idea" target="_blank" rel="noopener">💬 Tell us what you think</a><a data-fb="bug" target="_blank" rel="noopener">🛟 Report a problem</a><button type="button" class="linkbtn" data-open="settings-help">❓ Help</button></span>
+  </footer>
+
   <div class="hc hc-pop" id="pop" hidden></div>
+  <div class="segtip" id="segtip" role="tooltip" hidden></div>
 </div>
 
 <button class="btn tvexit" id="tvExit" type="button">Exit TV mode (Esc)</button>
@@ -57,7 +63,7 @@
 <dialog id="addDlg" aria-labelledby="addTitle">
   <div class="dlg">
     <div class="dlg-head"><h2 id="addTitle">Load your whales</h2><button class="close" data-close type="button" aria-label="Close">×</button></div>
-    <p class="lbl2">Paste names, upload a CSV, or pull in the companies already ticked as target accounts in HubSpot. Harpoon finds each one in HubSpot and asks you to check anything it isn't sure about.</p>
+    <p class="lbl2" id="addIntro">Paste names, upload a CSV, or pull in the companies already ticked as target accounts in HubSpot. Harpoon finds each one in HubSpot and asks you to check anything it isn't sure about.</p>
     <p class="lbl2">🐋 <b>100 whales is the max.</b> Need more? That's trawling, not harpooning.<br>🔢 <b>List them most important first.</b> New whales join the bottom of your ranking, and you can drag them into place on the board.</p>
     <div class="seg" role="group" aria-label="How to add accounts" id="addTabs">
       <button type="button" data-pane="paste" aria-pressed="true">📋 Paste names</button>
@@ -65,7 +71,7 @@
       <button type="button" data-pane="hs" aria-pressed="false">🎯 Pull from HubSpot</button>
     </div>
     <div class="pane" data-pane="paste">
-      <label for="addText" class="lbl2">One company per line. A company name or its website (like acme.com) both work. A website is the most exact match.</label>
+      <label for="addText" class="lbl2" id="addHint">One company per line. A company name or its website (like acme.com) both work. A website is the most exact match.</label>
       <textarea id="addText" rows="6" placeholder="Acme Logistics&#10;globex.com&#10;Initech"></textarea>
       <div style="margin-top:8px"><button class="btn primary" id="findBtn" type="button">🔎 Find them in HubSpot</button> <span class="lbl2" id="findProgress"></span></div>
     </div>
@@ -153,6 +159,40 @@ Globex,</pre>
   </div>
 </dialog>
 
+<!-- ============ Are you sure? ============ -->
+<dialog id="confirmDlg" class="dlg-confirm" aria-labelledby="cfTitle">
+  <div class="dlg">
+    <h2 id="cfTitle">Throw back this whale?</h2>
+    <p class="lbl2" id="cfText"></p>
+    <div class="cf-acts"><button class="btn" id="cfNo" type="button">Keep it</button><button class="btn danger-solid" id="cfOk" type="button">Throw it back</button></div>
+  </div>
+</dialog>
+
+<!-- ============ Update a whale (manual mode) ============ -->
+<dialog id="editDlg" class="dlg-mid" aria-labelledby="editTitle">
+  <div class="dlg">
+    <div class="dlg-head"><h2 id="editTitle">Update whale</h2><button class="close" data-close type="button" aria-label="Close">×</button></div>
+    <div class="ed-field"><label for="edName">Company</label><input class="field" id="edName" autocomplete="off"></div>
+    <div class="ed-field"><span class="ed-lbl" id="edSLbl">Status</span>
+      <div class="ed-status" role="radiogroup" aria-labelledby="edSLbl">
+        <label class="ed-s s-won"><input type="radio" name="edS" value="won"><span><i>🎯</i>Won</span></label>
+        <label class="ed-s s-hot"><input type="radio" name="edS" value="hot"><span><i>🔥</i>Hot</span></label>
+        <label class="ed-s s-amber"><input type="radio" name="edS" value="amber"><span><i>🔭</i>Being contacted</span></label>
+        <label class="ed-s s-cold"><input type="radio" name="edS" value="cold"><span><i>🥶</i>Getting cold</span></label>
+        <label class="ed-s s-red"><input type="radio" name="edS" value="red"><span><i>👀</i>Not contacted</span></label>
+      </div>
+      <p class="small ed-key">🔥 <b>Hot:</b> you're talking to them a lot. 🥶 <b>Getting cold:</b> you've been in touch, but they've gone quiet.</p>
+    </div>
+    <div class="ed-field"><label for="edOwner">Owner <span class="ed-hint">the person responsible for this whale</span></label><input class="field" id="edOwner" list="ownerList" autocomplete="off" placeholder="Who's responsible for it? Leave it blank if nobody is"><datalist id="ownerList"></datalist></div>
+    <div class="ed-row">
+      <div class="ed-field" id="edAmtWrap"><label for="edAmt" id="edAmtLbl">Deal value</label><div class="money-in"><span id="edCur">£</span><input class="field" id="edAmt" type="number" min="0" step="500" inputmode="decimal" placeholder="0"></div></div>
+      <div class="ed-field" id="edStageWrap"><label for="edStage">Deal stage</label><select id="edStage"></select></div>
+    </div>
+    <p class="small">The deal value adds up into Open pipeline (or Won revenue once it's won). Change the deal stages in Settings to match how your team sells. Mark it 🎯 Won and the harpoon strikes.</p>
+    <div class="dlg-foot"><button class="btn" type="button" data-close>Cancel</button><button class="btn primary" id="edSave" type="button">Save</button></div>
+  </div>
+</dialog>
+
 <!-- ============ Settings ============ -->
 <dialog id="settingsDlg" aria-labelledby="setTitle">
   <div class="dlg">
@@ -160,6 +200,21 @@ Globex,</pre>
     <div id="webNote"></div>
 
     <section class="set-sec">
+      <h3>Where your whales come from</h3>
+      <div class="src-pick" role="radiogroup" aria-label="Where your whales come from">
+        <label class="src-opt"><input type="radio" name="src" value="hubspot"><span><b>🔗 HubSpot</b><small>Harpoon reads your CRM: owners, deals, emails, calls and meetings. Read-only.</small></span></label>
+        <label class="src-opt"><input type="radio" name="src" value="manual"><span><b>✏️ Manual, no CRM</b><small>You set each whale's status, owner, deal value and stage on the board. Nothing to connect.</small></span></label>
+      </div>
+    </section>
+
+    <section class="set-sec" id="manSec" hidden>
+      <h3>Deal stages</h3>
+      <p class="lbl2">One per line, in order. They start as HubSpot's default sales pipeline, so your board lines up if you connect HubSpot later. Won is set with the 🎯 Won status.</p>
+      <textarea id="stagesIn" rows="5" aria-label="Deal stages, one per line"></textarea>
+      <div class="inrow"><button class="btn small" id="stagesReset" type="button">Use HubSpot's default stages</button></div>
+    </section>
+
+    <section class="set-sec" id="hsSec">
       <h3>Connect HubSpot</h3>
       <p class="lbl2">Harpoon only ever <b>reads</b> from HubSpot. The access token stays in this Chrome and is only ever sent to HubSpot.</p>
       <details class="help">
@@ -200,7 +255,7 @@ Globex,</pre>
       <div class="ids" id="idsList"></div>
     </section>
 
-    <section class="set-sec">
+    <section class="set-sec" id="hotSec">
       <h3>Hot and cold</h3>
       <div class="nums">
         <span>🔥 Hot = at least <input class="field" id="hotT" type="number" min="1" max="99"> touches and a touch in the last <input class="field" id="hotD" type="number" min="1" max="365"> days</span>
@@ -222,9 +277,25 @@ Globex,</pre>
       </div>
     </section>
 
+    <section class="set-sec" id="helpSec">
+      <h3>Help and feedback</h3>
+      <p class="lbl2">🍾 Got an idea, a gripe, or spotted a leak in the hull? Toss a message in a bottle. Every one gets read, and the best ideas get built.</p>
+      <div class="inrow">
+        <a class="btn" data-fb="idea" target="_blank" rel="noopener">💬 Tell us what you think</a>
+        <a class="btn" data-fb="bug" target="_blank" rel="noopener">🛟 Report a problem</a>
+        <a class="btn ghost" data-fb="guide" target="_blank" rel="noopener">📖 Read the guide</a>
+      </div>
+      <p class="small">These open a short form on GitHub (free account needed), so you can see the reply.</p>
+    </section>
+
+    <section class="set-sec" id="clearSec">
+      <h3>Start fresh</h3>
+      <div class="inrow"><button class="btn danger" id="clearBoard" type="button">🧹 Clear all whales</button><span class="small">Throws every whale back so you can start again. You can undo it straight after.</span></div>
+    </section>
+
     <section class="set-sec" id="demoSec">
       <h3>Demo data</h3>
-      <div class="inrow"><button class="btn" id="resetDemo" type="button">Reset the demo board</button><span class="small">Brings back the 20 made-up whales.</span></div>
+      <div class="inrow"><button class="btn" id="resetDemo" type="button">Reset the demo board</button><span class="small">Brings back the 8 made-up whales.</span></div>
     </section>
   </div>
 </dialog>

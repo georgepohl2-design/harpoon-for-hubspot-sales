@@ -7,6 +7,7 @@ import { CAP, LABEL, heat, money, moneyFull, ago, daysSince, buildRundown, rundo
 import * as hubspot from './lib/hubspot.js';
 import { sendSlack } from './lib/slack.js';
 import { drawSnapshot, snapshotBlob } from './lib/snapshot.js';
+import { HUBSPOT_STAGES, manualAccounts, newManualKey } from './lib/manual.js';
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -15,10 +16,11 @@ const HEAT = { hot: '🔥', cold: '🥶', '': '' };
 const REPO = 'https://github.com/georgepohl2-design/harpoon-for-hubspot-sales';
 
 let S;                 // settings
-let mode = 'demo';     // 'demo' | 'live'
+let mode = 'demo';     // 'demo' | 'live' (HubSpot) | 'manual' (no CRM)
 let accounts = [];
 let targets = [];      // live: [{ key, id, name }]
 let demoState = {};    // demo: { removed, added, links }
+let manualList = [];   // manual: [{ key, name, s, owner, amount, stage, wonAt }], in priority order
 let warnings = [], errorMsg = '', lastUpdated = null, refreshing = false, notifyState = {};
 let filter = 'all', query = '';
 let watch = { seen: {}, changes: {} }; // what changed since you last looked (see trackChanges)
@@ -48,7 +50,15 @@ function paintLogos() {
 
 async function load() {
   ({ notify: notifyState = {} } = await store.get('notify'));
-  if (S.token && IS_EXT) {
+  document.body.classList.toggle('manual', S.source === 'manual');
+  if (S.source === 'manual') {
+    mode = 'manual';
+    ({ manual: manualList = [] } = await store.get('manual'));
+    accounts = manualAccounts(manualList, S);
+    ({ watch = { seen: {}, changes: {} } } = await store.get('watch'));
+    watch = trackChanges(accounts, watch, S);
+    warnings = []; errorMsg = ''; lastUpdated = Date.now();
+  } else if (S.token && IS_EXT) {
     mode = 'live';
     ({ targets = [] } = await store.get('targets'));
     const { cache } = await store.get('cache');
@@ -103,10 +113,17 @@ async function markSeen(keys) {
 
 async function saveDemo() { await store.set({ demo: demoState }); accounts = demoAccounts(demoState); watch = demoWatch(accounts, demoState, a => stateOf(a, S)); }
 async function saveTargets() { await store.set({ targets }); }
+// manual mode: save the list (in board order), rebuild the whales, and note what changed (so a win still gets its confetti)
+async function saveManual() {
+  accounts = manualAccounts(manualList, S);
+  watch = trackChanges(accounts, watch, S);
+  await store.set({ manual: manualList, watch });
+}
 async function saveS() { await store.saveSettings(S); }
 
 // ---------- render ----------
 function render() {
+  feedbackLinks();
   accounts.forEach((a, i) => { a.rank = i + 1; }); // the list order is the priority order: #1 matters most
   renderOnboard();
   renderBanners();
@@ -114,7 +131,9 @@ function render() {
   renderBoard();
   renderLog();
   renderStatus();
-  $('legend').textContent = `🔥 Hot: ${S.hotTouches}+ touches and a touch in the last ${S.hotDays} days. 🥶 Getting cold: no touch for ${S.coldDays}+ days. Change these in Settings.`;
+  $('legend').textContent = mode === 'manual'
+    ? "🔥 Hot: you're talking to them a lot. 🥶 Getting cold: you've been in touch, but they've gone quiet. Click a whale to change it."
+    : `🔥 Hot: ${S.hotTouches}+ touches and a touch in the last ${S.hotDays} days. 🥶 Getting cold: no touch for ${S.coldDays}+ days. Change these in Settings.`;
   document.querySelectorAll('#sortSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.sort === (S.sort || 'rank')));
   document.querySelectorAll('#viewSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.view === S.view));
 }
@@ -124,10 +143,12 @@ function renderOnboard() {
   const el = $('onboard');
   const solo = S.hunting === 'solo';
   const steps = [
-    { done: mode === 'live', title: 'Connect your HubSpot CRM', open: 'settings', btn: 'Connect HubSpot',
-      text: solo ? "Read-only. Not a HubSpot admin? Ask yours for a read-only token. It takes them 5 minutes."
-                 : 'Read-only: Harpoon never changes anything in HubSpot. About 5 minutes.' },
-    { done: mode === 'live' && targets.length > 0, title: 'Add your target accounts', open: 'add', btn: 'Add whales',
+    mode === 'manual'
+      ? { done: true, title: 'Going manual', text: 'No CRM needed: you set each whale\'s status, owner and deal on the board. Connect HubSpot any time in Settings.' }
+      : { done: mode === 'live', title: 'Connect your HubSpot CRM', open: 'settings', btn: 'Connect HubSpot', manual: true,
+          text: solo ? "Read-only. Not a HubSpot admin? Ask yours for a read-only token. It takes them 5 minutes."
+                     : 'Read-only: Harpoon never changes anything in HubSpot. About 5 minutes.' },
+    { done: (mode === 'live' && targets.length > 0) || (mode === 'manual' && accounts.length > 0), title: 'Add your target accounts', open: 'add', btn: 'Add whales',
       text: solo ? "Your own whales: the accounts you're going after. 100 is the limit, but we recommend starting with 20."
                  : 'Whales, we call them. 100 is the limit, but we recommend starting with 20.' },
     solo
@@ -163,10 +184,12 @@ function renderOnboard() {
         <h3><span class="ob-n">${x.done ? '✓' : i + 1}</span>${x.title}${x.optional ? ' <span class="ob-opt">Optional</span>' : ''}</h3>
         <p>${x.text}</p>
         ${x.done ? `<span class="ok">${x.optional && S.slackSkipped && !S.webhook ? 'Skipped. Add it any time in Settings.' : 'Done'}</span>`
-                 : `<div class="ob-acts"><button class="btn small${i === now ? ' primary pulse' : ''}" type="button" data-open="${x.open}">${x.btn}</button>${x.optional ? '<button class="ob-skip" type="button" data-ob="skip">Skip for now</button>' : ''}</div>`}
+                 : `<div class="ob-acts"><button class="btn small${i === now ? ' primary pulse' : ''}" type="button" data-open="${x.open}">${x.btn}</button>${x.optional ? '<button class="ob-skip" type="button" data-ob="skip">Skip for now</button>' : ''}${x.manual ? '<button class="ob-skip" type="button" data-ob="manual">No CRM? Do it manually</button>' : ''}</div>`}
       </li>`).join('')}
     </ol>`;
   el.querySelectorAll('[data-who]').forEach(b => b.onclick = async () => { S.hunting = b.dataset.who; await saveS(); render(); });
+  const man = el.querySelector('[data-ob="manual"]');
+  if (man) man.onclick = () => setSource('manual');
   const skip = el.querySelector('[data-ob="skip"]');
   if (skip) skip.onclick = async () => { S.slackSkipped = true; await saveS(); renderOnboard(); };
   if (all) el.querySelector('[data-ob="hide"]').onclick = async () => {
@@ -196,9 +219,12 @@ function renderStats() {
   const wonAmt = accounts.filter(a => a.s === 'won' && a.won).reduce((s, a) => s + (a.won.amount || 0), 0);
   const pct = x => N ? Math.round(x / N * 100) : 0;
   const w = x => (N ? x / N * 100 : 0) + '%';
+  // each colour on the bar gets its own whale-y hover tip (see the segtip listeners)
+  const whales = n => n + (n === 1 ? ' whale' : ' whales');
+  const seg = (n, col, line, plain) => n ? `<i style="width:${w(n)};background:${col}" data-tip="${esc(line)}" data-plain="${esc(plain)}"></i>` : '';
   $('stats').innerHTML = `
-    <div class="stat cap" title="Ranked by priority, starting from #1"><span class="k"><img class="kicon" src="icons/icon32.png" alt="">Whales to hunt</span><span class="v">${N}</span>
-      <div class="bar" role="img" aria-label="${W} won, ${Y} being contacted, ${R} not contacted, ${G} not linked"><i style="width:${w(W)};background:var(--won)"></i><i style="width:${w(Y)};background:var(--amber)"></i><i style="width:${w(R)};background:var(--red)"></i><i style="width:${w(G)};background:var(--grey)"></i></div>
+    <div class="stat cap"><span class="k"><img class="kicon" src="icons/icon32.png" alt="">Whales to hunt</span><span class="v">${N}</span>
+      <div class="bar" role="img" aria-label="${W} won, ${Y} being contacted, ${R} not contacted, ${G} not linked">${seg(W, 'var(--won)', `🎯 ${whales(W)} harpooned`, 'Won')}${seg(Y, 'var(--amber)', `🔭 ${whales(Y)} being hunted`, 'Being contacted')}${seg(R, 'var(--red)', `👀 ${whales(R)} not spotted yet`, 'Nobody has contacted them')}${seg(G, 'var(--grey)', `🌊 ${whales(G)} lost at sea`, 'Not linked to HubSpot yet')}</div>
       <span class="hint hover-only">Ranked by priority, starting from #1</span></div>
     <div class="stat"><span class="k"><span class="dot" style="background:var(--won)"></span>Won</span><span class="v">${W} <small>${pct(W)}%</small></span></div>
     <div class="stat"><span class="k"><span class="dot" style="background:var(--amber)"></span>Being contacted</span><span class="v">${Y} <small>${pct(Y)}%</small></span><span class="hint">🔥 ${hot} hot · 🥶 ${cold} getting cold</span></div>
@@ -224,24 +250,28 @@ function tileInner(a) {
   const stg = ds ? `<span class="stg">${a.s === 'won' ? '🏆 ' : ''}${esc(ds)}${a.s === 'won' && a.won && a.won.amount ? ' · ' + money(a.won.amount, S.currency) : ''}</span>` : '';
   const right = a.s === 'grey' ? '<span>Link it</span>' : (a.owner ? `<span class="av" title="${esc(a.owner)}">${esc(initials(a.owner))}</span>` : '<span class="av none" title="No owner">?</span>');
   let sub;
-  if (a.s === 'amber') sub = `<span class="em">${touches(a)}${a.last != null ? `${a.t != null ? ' · ' : ''}${a.last}d` : ''}</span>`;
+  if (a.s === 'amber' && a.manual) sub = `<span>${a.deal && a.deal.amount ? money(a.deal.amount, S.currency) : 'No deal value yet'}</span>`;
+  else if (a.s === 'amber') sub = `<span class="em">${touches(a)}${a.last != null ? `${a.t != null ? ' · ' : ''}${a.last}d` : ''}</span>`;
   else if (a.s === 'won') sub = `<span>${a.won && a.won.date ? 'Won ' + monthYear(a.won.date) : 'Customer'}</span>`;
-  else if (a.s === 'red') sub = `<span>${a.why === 'noowner' ? '😱 No owner' : '😳 Never contacted'}</span>`;
+  else if (a.s === 'red') sub = `<span>${a.why === 'noowner' ? '😱 No owner' : a.manual ? '😳 Not contacted yet' : '😳 Never contacted'}</span>`;
   else sub = `<span>${a.missing ? 'Gone from HubSpot' : 'Not in HubSpot yet'}</span>`;
   return `<span class="top"><span class="name"><span class="rk" title="Priority #${a.rank}">${a.rank}</span>${esc(a.name)}</span>${h ? `<span class="heat" title="${h === 'hot' ? 'Hot' : 'Getting cold'}">${HEAT[h]}</span>` : ''}</span>
     <span class="sr">${LABEL[a.s]}</span>${stg}<span class="row">${sub}${right}</span>`;
 }
 
-function tileHTML(a) {
+function tileHTML(a, tier = '') {
   const inner = tileInner(a);
+  const h = heat(a, S), cls = `tile s-${a.s}${h ? ' heat-' + h : ''}`; // hot and cold whales get a warm or icy outline
   let el;
-  if (a.s === 'grey') el = `<button type="button" class="tile s-grey" data-act="link">${inner}</button>`;
-  else if (a.url) el = `<a class="tile s-${a.s}" href="${esc(a.url)}" target="_blank" rel="noopener">${inner}</a>`;
-  else el = `<button type="button" class="tile s-${a.s}" data-act="open">${inner}</button>`;
-  return `<div class="tw" data-key="${esc(a.key)}" draggable="true">${el}${watch.changes && watch.changes[a.key] ? `<span class="chg k-${changeKind(watch.changes[a.key])}" title="${esc(describeChange(watch.changes[a.key], a, S.currency))}" aria-label="Changed: ${esc(describeChange(watch.changes[a.key], a, S.currency))}">${esc(changeTag(watch.changes[a.key]))}</span>` : ''}<i class="cb k1"></i><i class="cb k2"></i><i class="cb k3"></i><i class="cb k4"></i><button class="x" type="button" data-act="remove" title="Throw it back (remove)" aria-label="Remove ${esc(a.name)}">×</button></div>`;
+  if (a.manual) el = `<button type="button" class="${cls}" data-act="edit">${inner}</button>`; // manual: click to update it
+  else if (a.s === 'grey') el = `<button type="button" class="${cls}" data-act="link">${inner}</button>`;
+  else if (a.url) el = `<a class="${cls}" href="${esc(a.url)}" target="_blank" rel="noopener">${inner}</a>`;
+  else el = `<button type="button" class="${cls}" data-act="open">${inner}</button>`;
+  return `<div class="tw${tier ? ' ' + tier : ''}" data-key="${esc(a.key)}" draggable="true">${el}${tier.includes('top1') ? '<span class="topbadge">🐋 Top whale</span>' : ''}${watch.changes && watch.changes[a.key] ? `<span class="chg k-${changeKind(watch.changes[a.key])}" title="${esc(describeChange(watch.changes[a.key], a, S.currency))}" aria-label="Changed: ${esc(describeChange(watch.changes[a.key], a, S.currency))}">${esc(changeTag(watch.changes[a.key]))}</span>` : ''}<i class="cb k1"></i><i class="cb k2"></i><i class="cb k3"></i><i class="cb k4"></i><button class="x" type="button" data-act="remove" title="Throw it back (remove)" aria-label="Remove ${esc(a.name)}">×</button></div>`;
 }
 
 function companyLink(a) {
+  if (a.manual) return `<button class="co" type="button" data-act="edit" data-key="${esc(a.key)}">${esc(a.name)}</button>`;
   if (a.url) return `<a class="co" href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.name)}</a>`;
   return `<button class="co" type="button" data-act="${a.s === 'grey' ? 'link' : 'open'}" data-key="${esc(a.key)}">${esc(a.name)}</button>`;
 }
@@ -256,7 +286,7 @@ function renderBoard() {
   const tiles = S.view !== 'list' || document.body.classList.contains('tv'); // TV mode always shows tiles
   $('grid').hidden = !tiles || empty;
   $('tablewrap').hidden = tiles || empty;
-  if (tiles) { $('grid').innerHTML = list.map(tileHTML).join(''); requestAnimationFrame(celebrateWins); }
+  if (tiles) { $('grid').innerHTML = tileRows(list); requestAnimationFrame(celebrateWins); }
   else {
     $('tablewrap').innerHTML = `<table class="list-t"><thead><tr><th>#</th><th>Status</th><th>Company</th><th></th><th>Owner</th><th>Lifecycle</th><th>Deal stage</th><th>Touches</th><th class="num">Last touch</th><th class="num">Value</th><th></th></tr></thead><tbody>${
       list.map(a => `<tr data-key="${esc(a.key)}"><td><input class="rkin" type="number" min="1" max="${accounts.length}" value="${a.rank}" aria-label="Priority of ${esc(a.name)}" title="Type a new number to re-rank"></td><td><span class="pill" style="background:var(--${a.s}-bg);color:var(--${a.s})"><span class="dot" style="background:currentColor"></span>${LABEL[a.s]}</span></td>
@@ -269,7 +299,30 @@ function renderBoard() {
   $('count').textContent = empty ? '' : `Showing ${list.length} of ${accounts.length} whales · ${S.sort === 'az' ? 'sorted A–Z' : 'ranked by priority (drag a tile, or type a number in List view, to re-rank)'}${G ? ` · ${G} not linked to HubSpot yet` : ''}`;
 }
 
+// The size hierarchy: ranked by priority, #1 is the biggest tile, the top row is a touch bigger than the second,
+// and the second a hair bigger than the rest. Sorted A–Z, filtered or searched, every tile is the same size.
+function tileRows(list) {
+  const ranked = S.sort !== 'az' && filter === 'all' && !query && list.length > 1;
+  if (!ranked) return `<div class="grid">${list.map(a => tileHTML(a)).join('')}</div>`;
+  $('grid').innerHTML = '<div class="grid"></div>'; // how many tiles fit across at this screen size?
+  const n = Math.max(1, getComputedStyle($('grid').firstChild).gridTemplateColumns.split(' ').filter(Boolean).length);
+  lastCols = n;
+  const topN = n <= 2 ? 1 : n - 1;                   // one fewer across the top, so every top tile is bigger; on a phone #1 gets the row
+  const top = list.slice(0, topN), row2 = list.slice(topN, topN + n), rest = list.slice(topN + n);
+  const cols = topN === 1 ? 'minmax(0, 1fr)' : `minmax(0, 1.35fr) repeat(${topN - 1}, minmax(0, 1fr))`;
+  return `<div class="grid g-top" style="grid-template-columns:${cols}">${top.map((a, i) => tileHTML(a, i === 0 ? 't1 top1' : 't1')).join('')}</div>`
+    + (row2.length + rest.length ? `<div class="grid">${row2.map(a => tileHTML(a, 't2')).join('')}${rest.map(a => tileHTML(a)).join('')}</div>` : '');
+}
+let lastCols = 0, resizeTimer;
+window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => {
+  const probe = document.querySelector('#grid .grid:last-child'); if (!probe || S.view === 'list') return;
+  const n = getComputedStyle(probe).gridTemplateColumns.split(' ').filter(Boolean).length;
+  if (n !== lastCols) renderBoard(); // more or fewer tiles fit across: rebuild the rows
+}, 150); });
+
 function renderLog() {
+  $('shiplog').hidden = mode === 'manual'; // the ship's log reads touches from HubSpot: nothing to show without a CRM
+  if (mode === 'manual') return;
   const all = accounts.flatMap(a => (a.log || []).map(x => ({ ...x, a }))).filter(x => x.ts).sort((x, y) => y.ts - x.ts);
   const rows = all.slice(0, 10).map(x => `<tr><td>${companyLink(x.a)}</td><td>${LOGT[x.type] || x.type}</td><td>${esc(x.who || '–')}</td><td class="num">${ago(daysSince(x.ts))}</td></tr>`).join('');
   $('shiplog').innerHTML = `<h3>🧭 Ship's log <small>latest touches on your target accounts, pulled from HubSpot</small></h3>
@@ -281,10 +334,11 @@ function renderLog() {
 function renderStatus() {
   let t;
   if (mode === 'demo') t = 'Demo data';
+  else if (mode === 'manual') t = '✏️ Manual: click a whale to update it';
   else if (refreshing) t = 'Refreshing from HubSpot…';
   else t = lastUpdated ? `Updated ${agoMin(lastUpdated)}` : 'Not loaded yet';
   $('updated').innerHTML = `${esc(t)}${mode === 'live' && !refreshing ? ' <button class="btn small ghost" type="button" id="refreshBtn" aria-label="Refresh from HubSpot">↻ Refresh</button>' : ''}`;
-  $('tvUpdated').textContent = mode === 'demo' ? 'Demo data' : (lastUpdated ? 'Updated ' + agoMin(lastUpdated) : '');
+  $('tvUpdated').textContent = mode === 'demo' ? 'Demo data' : mode === 'manual' ? '' : (lastUpdated ? 'Updated ' + agoMin(lastUpdated) : '');
 }
 function agoMin(ts) {
   const m = Math.floor((Date.now() - ts) / 60000);
@@ -310,6 +364,15 @@ function card(a) {
   let out = `<h4><span>#${a.rank} ${esc(a.name)}</span><span>${HEAT[h]}</span></h4>`;
   const chg = watch.changes && watch.changes[a.key];
   if (chg) out += `<div class="chgline k-${changeKind(chg)}">${esc(describeChange(chg, a, S.currency))} <span>· ${agoMin(chg.at)}</span></div>`;
+  if (a.manual) {
+    // manual mode: just what you've set, no touch data
+    const sub = { won: `🏆 Won${a.won && a.won.date ? ' · ' + fullDate(a.won.date) : ''}`, amber: `Being contacted${h === 'hot' ? ' · talking a lot' : h === 'cold' ? ' · gone quiet' : ''}`, red: 'Not contacted' }[a.s];
+    out += `<div class="sub" style="color:var(--${a.s})">${sub}</div>`;
+    const amt = a.s === 'won' ? a.won && a.won.amount : a.deal && a.deal.amount;
+    out += `<dl><dt>Owner</dt><dd>${esc(a.owner || (a.s === 'red' ? '😱 Nobody yet' : '–'))}</dd><dt>Deal value</dt><dd>${amt ? moneyFull(amt, S.currency) : '–'}</dd>${a.s === 'amber' ? `<dt>Stage</dt><dd>${esc((a.deal && a.deal.stage) || '–')}</dd>` : ''}</dl>`;
+    if (a.s === 'amber') out += stageStrip(a);
+    return out + '<div class="foot">Click to update it →</div>';
+  }
   if (a.s === 'amber') {
     out += `<div class="sub" style="color:var(--amber)">Being contacted${a.t ? ` · ${a.t} touches` : ''}</div>`;
     out += `<dl><dt>Owner</dt><dd>${esc(a.owner || '–')}</dd><dt>Last touch</dt><dd>${ago(a.last)}</dd><dt>Deal</dt><dd>${a.deal ? (a.deal.amount ? moneyFull(a.deal.amount, S.currency) : 'Open') : 'None yet'}</dd>${a.deal ? `<dt>Stage</dt><dd>${esc(a.deal.stage)}</dd>` : ''}</dl>`;
@@ -352,9 +415,29 @@ function say(msg, undo) {
   clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, undo ? 7000 : 4200);
 }
 
+// a small "are you sure?" window, so a whale can't be thrown back by a stray click
+function askConfirm(title, text, ok) {
+  return new Promise(resolve => {
+    $('cfTitle').textContent = title; $('cfText').textContent = text; $('cfOk').textContent = ok;
+    const d = $('confirmDlg');
+    const done = v => { d.onclose = null; d.close(); resolve(v); };
+    $('cfOk').onclick = () => done(true);
+    $('cfNo').onclick = () => done(false);
+    d.onclose = () => resolve(false);
+    d.showModal(); $('cfNo').focus();
+  });
+}
+
 async function removeAccount(key) {
   const a = accounts.find(x => x.key === key); if (!a) return;
-  if (mode === 'demo') {
+  $('pop').hidden = true;
+  if (!await askConfirm(`Throw back ${a.name}?`, `${a.name} comes off your target accounts and off the board.${mode === 'live' ? ' Nothing changes in HubSpot.' : ''}`, 'Throw it back')) return;
+  if (mode === 'manual') {
+    const before = manualList.slice();
+    manualList = manualList.filter(r => r.key !== key);
+    await saveManual(); render(); badge();
+    say(`Threw back ${a.name}.`, async () => { manualList = before; await saveManual(); render(); badge(); });
+  } else if (mode === 'demo') {
     const before = JSON.parse(JSON.stringify(demoState));
     if ((demoState.added || []).includes(key)) demoState.added = demoState.added.filter(k => k !== key);
     else demoState.removed = [...new Set([...(demoState.removed || []), key])];
@@ -386,6 +469,10 @@ async function find(raw) { return mode === 'live' ? hubspot.searchCompany(S.toke
 async function runLines(lines) {
   if (searching) return;
   lines = [...new Set(lines.map(l => l.trim()).filter(Boolean))].slice(0, CAP);
+  if (mode === 'manual') { // no CRM to search: every line joins the board as Not contacted
+    rows = lines.map(raw => ({ raw, hits: [], exact: false, choice: 'manual' }));
+    $('findProgress').textContent = lines.length ? `${lines.length} checked.` : ''; drawResults(); return;
+  }
   rows = []; searching = true; drawResults();
   $('findBtn').disabled = true;
   try {
@@ -404,6 +491,7 @@ async function runLines(lines) {
 }
 
 function rowState(r) {
+  if (r.choice === 'manual') return accounts.some(a => normName(a.name) === normName(r.raw)) ? 'already' : 'add';
   if (r.exact && onList(r.hits[0])) return 'already';
   if (r.choice === 'skip' || r.choice === '') return 'skip';
   if (r.choice === 'grey') return accounts.some(a => a.unlinked && normName(a.name) === normName(r.raw)) ? 'already' : 'grey';
@@ -413,8 +501,11 @@ function rowState(r) {
 
 function drawResults() {
   if (!rows.length) { $('results').innerHTML = ''; updateCount(); return; }
-  $('results').innerHTML = `<div class="tablewrap"><table><thead><tr><th>You typed</th><th>Match in HubSpot</th><th>What happens</th></tr></thead><tbody>${rows.map((r, i) => {
+  $('results').innerHTML = `<div class="tablewrap"><table><thead><tr><th>You typed</th><th>${mode === 'manual' ? 'Company' : 'Match in HubSpot'}</th><th>What happens</th></tr></thead><tbody>${rows.map((r, i) => {
     const h = r.hits;
+    if (r.choice === 'manual') return rowState(r) === 'already'
+      ? `<tr><td>${esc(r.raw)}</td><td>${esc(r.raw)}</td><td><span class="tag" style="background:var(--grey-bg);color:var(--grey)">Already on board</span></td></tr>`
+      : `<tr><td>${esc(r.raw)}</td><td><b>${esc(r.raw)}</b></td><td><span class="tag" style="background:var(--won-bg);color:var(--won)">✅ Ready</span> Joins as Not contacted. Click it on the board to set the rest</td></tr>`;
     if (r.exact && onList(h[0])) return `<tr><td>${esc(r.raw)}</td><td>${esc(h[0].name)}${h[0].domain ? ' · ' + esc(h[0].domain) : ''}</td><td><span class="tag" style="background:var(--grey-bg);color:var(--grey)">Already on board</span></td></tr>`;
     if (r.exact) return `<tr><td>${esc(r.raw)}</td><td><b>${esc(h[0].name)}</b>${h[0].domain ? ' · ' + esc(h[0].domain) : ''}</td><td><span class="tag" style="background:var(--won-bg);color:var(--won)">✅ Found</span> ${h[0].owner ? 'Owner ' + esc(h[0].owner) : 'No owner yet, so it starts red'}</td></tr>`;
     if (h.length) return `<tr><td>${esc(r.raw)}</td><td><select data-i="${i}" aria-label="Pick the right company for ${esc(r.raw)}"><option value="">Pick one…</option>${h.map((x, j) => `<option value="${j}" ${String(r.choice) === String(j) ? 'selected' : ''}>${esc(x.name)}${x.domain ? ' · ' + esc(x.domain) : ''}</option>`).join('')}<option value="grey" ${r.choice === 'grey' ? 'selected' : ''}>None of these: add as Not linked</option><option value="skip" ${r.choice === 'skip' ? 'selected' : ''}>Skip it</option></select></td><td><span class="tag" style="background:var(--amber-bg);color:var(--amber)">⚠️ ${h.length > 1 ? `${h.length} look alike` : 'Close match'}</span> Pick the right one</td></tr>`;
@@ -439,7 +530,10 @@ function updateCount() {
 async function confirmAdd() {
   const picks = rows.map(r => ({ r, st: rowState(r) })).filter(p => p.st === 'add' || p.st === 'grey');
   if (accounts.length + picks.length > CAP) return;
-  if (mode === 'demo') {
+  if (mode === 'manual') {
+    picks.forEach(({ r }) => manualList.push({ key: newManualKey(), name: r.raw.trim(), s: 'red' }));
+    await saveManual();
+  } else if (mode === 'demo') {
     demoState.added = demoState.added || [];
     picks.forEach(({ r, st }) => demoState.added.push(st === 'grey' ? 'u:' + r.raw : r.hits[r.choice].key));
     await saveDemo();
@@ -543,6 +637,80 @@ async function sendNow() {
   } finally { btn.disabled = false; btn.textContent = 'Send to Slack now'; }
 }
 
+// ---------- manual mode: no CRM ----------
+// Switch where the whales come from. Each side keeps its own list, so you can go back and forth.
+async function setSource(src) {
+  S.source = src; await saveS();
+  document.querySelectorAll('dialog[open]').forEach(d => d.close());
+  await load(); render(); badge();
+  if (src === 'manual') say(accounts.length ? 'Manual mode: click any whale to update it.' : 'Manual mode, Captain. Add your whales, then click one to set its status, owner and deal.');
+  else say(mode === 'live' ? 'Back on HubSpot.' : 'HubSpot it is. Connect it in Settings to see your own whales.');
+}
+
+let editKey = null;
+function openEdit(key) {
+  const r = manualList.find(x => x.key === key); if (!r) return;
+  editKey = key;
+  $('editTitle').textContent = r.name;
+  $('edName').value = r.name;
+  const st = r.s === 'amber' && (r.heat === 'hot' || r.heat === 'cold') ? r.heat : (r.s || 'red');
+  document.querySelectorAll('input[name="edS"]').forEach(i => { i.checked = i.value === st; });
+  $('edOwner').value = r.owner || '';
+  $('ownerList').innerHTML = [...new Set(manualList.map(x => x.owner).filter(Boolean))].sort().map(o => `<option value="${esc(o)}">`).join('');
+  $('edCur').textContent = S.currency;
+  $('edAmt').value = r.amount || '';
+  const stages = S.stages && S.stages.length ? S.stages : HUBSPOT_STAGES;
+  $('edStage').innerHTML = `<option value="">No stage yet</option>` + stages.map(x => `<option ${x === r.stage ? 'selected' : ''}>${esc(x)}</option>`).join('')
+    + (r.stage && !stages.includes(r.stage) ? `<option selected>${esc(r.stage)}</option>` : '');
+  drawEditStatus();
+  $('editDlg').showModal();
+}
+function drawEditStatus() {
+  const v = (document.querySelector('input[name="edS"]:checked') || {}).value || 'red';
+  const s = v === 'hot' || v === 'cold' ? 'amber' : v; // hot and getting cold are both "being contacted"
+  $('edStageWrap').hidden = s !== 'amber';           // a deal stage only matters while you're working it
+  $('edAmtLbl').textContent = s === 'won' ? 'Won value' : 'Deal value';
+  $('edAmtWrap').hidden = s === 'red';
+}
+async function saveEdit() {
+  const r = manualList.find(x => x.key === editKey); if (!r) return;
+  const before = r.s;
+  r.name = $('edName').value.trim() || r.name;
+  const v = (document.querySelector('input[name="edS"]:checked') || {}).value || 'red';
+  r.s = v === 'hot' || v === 'cold' ? 'amber' : v;
+  r.heat = v === 'hot' || v === 'cold' ? v : '';
+  r.owner = $('edOwner').value.trim();
+  const amt = parseFloat(String($('edAmt').value).replace(/[^0-9.]/g, ''));
+  r.amount = r.s === 'red' ? null : (isNaN(amt) ? null : amt);
+  r.stage = r.s === 'amber' ? $('edStage').value : '';
+  if (r.s === 'won' && before !== 'won') r.wonAt = Date.now();
+  if (r.s !== 'won') delete r.wonAt;
+  await saveManual();
+  $('editDlg').close();
+  render(); badge();
+  say(r.s === 'won' && before !== 'won' ? `🏆 ${r.name} harpooned! Deal won.` : `Saved ${r.name}.`);
+}
+
+// the Add window: in manual mode there's no HubSpot to search, so it just checks the list
+function prepAdd() {
+  const man = mode === 'manual';
+  document.querySelector('#addTabs [data-pane="hs"]').hidden = man;
+  $('addIntro').textContent = man
+    ? 'Paste names or upload a CSV. Each whale joins the board as Not contacted. Then click it to set its status, owner and deal.'
+    : 'Paste names, upload a CSV, or pull in the companies already ticked as target accounts in HubSpot. Harpoon finds each one in HubSpot and asks you to check anything it isn\'t sure about.';
+  $('findBtn').textContent = man ? '✅ Check the list' : '🔎 Find them in HubSpot';
+  $('addHint').textContent = man ? 'One company per line, most important first.' : 'One company per line. A company name or its website (like acme.com) both work. A website is the most exact match.';
+}
+
+// help and feedback: a message in a bottle (opens a GitHub issue, so you can follow the reply)
+function feedbackLinks() {
+  const ver = IS_EXT ? chrome.runtime.getManifest().version : 'online demo';
+  const issue = (title, body) => `${REPO}/issues/new?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`;
+  document.querySelectorAll('[data-fb="idea"]').forEach(a => { a.href = issue('Idea: ', `What would make Harpoon better for you?\n\n\n---\nHarpoon ${ver} · ${mode === 'manual' ? 'manual mode' : mode === 'live' ? 'HubSpot' : 'demo'}`); });
+  document.querySelectorAll('[data-fb="bug"]').forEach(a => { a.href = issue('Leak in the hull: ', `What happened?\n\n\nWhat did you expect to happen?\n\n\n---\nHarpoon ${ver} · ${mode === 'manual' ? 'manual mode' : mode === 'live' ? 'HubSpot' : 'demo'} · ${navigator.userAgent}`); });
+  document.querySelectorAll('[data-fb="guide"]').forEach(a => { a.href = REPO + '#readme'; });
+}
+
 // ---------- settings ----------
 function openSettings() {
   $('webNote').innerHTML = IS_EXT ? '' : '<p class="banner demo">This is the online demo. Connecting HubSpot and Slack only works in the Chrome extension.</p>';
@@ -553,6 +721,12 @@ function openSettings() {
   $('hotT').value = S.hotTouches; $('hotD').value = S.hotDays; $('coldD').value = S.coldDays;
   $('curIn').value = S.currency; $('skinIn').value = S.skin; $('huntIn').value = S.hunting || 'team';
   $('demoSec').hidden = mode !== 'demo';
+  $('clearSec').hidden = mode === 'demo' || !accounts.length; // the demo has its own reset
+  document.querySelectorAll('input[name="src"]').forEach(i => { i.checked = i.value === (S.source === 'manual' ? 'manual' : 'hubspot'); });
+  $('hsSec').hidden = $('hotSec').hidden = S.source === 'manual';
+  $('manSec').hidden = S.source !== 'manual';
+  $('stagesIn').value = (S.stages && S.stages.length ? S.stages : HUBSPOT_STAGES).join('\n');
+  feedbackLinks();
   $('hsResult').innerHTML = mode === 'live' ? '<p class="okline">✅ Connected to HubSpot.</p>' : '';
   $('slackResult').innerHTML = '';
   drawIds();
@@ -583,7 +757,7 @@ async function testHs() {
     $('hsResult').innerHTML = `<div class="${companiesOk ? 'okline' : 'errline'}">${companiesOk ? `✅ Land ho! Connected. Harpoon can read ${r.companies != null ? r.companies.toLocaleString('en-GB') + ' companies' : 'your companies'}.` : "❌ Harpoon can't read companies with this token."}</div><div class="checks">${list}</div>`;
     if (companiesOk) {
       const wasDemo = mode === 'demo';
-      S.token = token; await saveS();
+      S.token = token; S.source = 'hubspot'; await saveS();
       $('disconnect').hidden = false;
       await load(); render();
       if (wasDemo && accounts.length === 0) say('Connected! Now add your target accounts.');
@@ -685,6 +859,7 @@ async function moveTo(key, rank) {
   if (from === to) { render(); return; }
   const [a] = accounts.splice(from, 1); accounts.splice(to, 0, a);
   if (mode === 'demo') { demoState.order = accounts.map(x => x.origKey || x.key); await store.set({ demo: demoState }); }
+  else if (mode === 'manual') { const byKey = Object.fromEntries(manualList.map(r => [r.key, r])); manualList = accounts.map(x => byKey[x.key]).filter(Boolean); await store.set({ manual: manualList }); }
   else { const byKey = Object.fromEntries(targets.map(t => [t.key, t])); targets = accounts.map(x => byKey[x.key]).filter(Boolean).concat(targets.filter(t => !accounts.some(x => x.key === t.key))); await saveTargets(); }
   render();
   say(`${a.name} is now #${to + 1}.`);
@@ -727,7 +902,7 @@ function harpoonTheWhale(logo) {
 
 // ---------- wiring ----------
 function bind() {
-  $('addBtn').onclick = () => { showPane('paste'); updateCount(); $('addDlg').showModal(); };
+  $('addBtn').onclick = () => { prepAdd(); showPane('paste'); updateCount(); $('addDlg').showModal(); };
   $('shareBtn').onclick = openShare;
   $('settingsBtn').onclick = openSettings;
   $('tvBtn').onclick = () => $('tvDlg').showModal();
@@ -750,6 +925,7 @@ function bind() {
     const o = e.target.closest('[data-open]'); if (!o) return;
     document.querySelectorAll('dialog[open]').forEach(d => d.close());
     if (o.dataset.open === 'settings') openSettings();
+    if (o.dataset.open === 'settings-help') { openSettings(); setTimeout(() => $('helpSec').scrollIntoView({ block: 'start' }), 50); }
     if (o.dataset.open === 'add') $('addBtn').click();
     if (o.dataset.open === 'settings' && o.closest('.onboard')) setTimeout(() => $('tokenIn').focus(), 50);
     if (o.dataset.open === 'slack') {
@@ -800,6 +976,7 @@ function bind() {
     if (act.dataset.act === 'remove') { e.preventDefault(); removeAccount(key); }
     if (act.dataset.act === 'link') openLink(key);
     if (act.dataset.act === 'open') openDemoNote(key);
+    if (act.dataset.act === 'edit') { e.preventDefault(); $('pop').hidden = true; openEdit(key); }
     if (act.dataset.act === 'seen-all') markSeen(Object.keys(watch.changes || {}));
   });
     let overTw = null;
@@ -809,7 +986,18 @@ function bind() {
   });
   $('grid').addEventListener('mouseleave', () => { overTw = null; });
   $('grid').addEventListener('focusin', e => { const tw = e.target.closest('.tw'); if (tw) showCard(tw); });
-  const hideCard = () => { $('pop').hidden = true; };
+  const hideCard = () => { $('pop').hidden = true; $('segtip').hidden = true; };
+  // the whales-to-hunt bar: hover a colour to see how many whales it is
+  $('stats').addEventListener('mouseover', e => {
+    const i = e.target.closest('.bar i[data-tip]'), tip = $('segtip');
+    if (!i) { tip.hidden = true; return; }
+    tip.innerHTML = `${esc(i.dataset.tip)}<small>${esc(i.dataset.plain)}</small>`; tip.hidden = false;
+    const pr = $('page').getBoundingClientRect(), r = i.getBoundingClientRect();
+    const mid = r.left + r.width / 2 - pr.left, half = tip.offsetWidth / 2;
+    const x = Math.min(Math.max(mid, half + 8), pr.width - half - 8); // keep it on the page, point the arrow at the colour
+    tip.style.left = x + 'px'; tip.style.top = (r.top - pr.top) + 'px'; tip.style.setProperty('--ax', (mid - x) + 'px');
+  });
+  $('stats').addEventListener('mouseleave', () => { $('segtip').hidden = true; });
   $('grid').addEventListener('mouseout', e => { const from = e.target.closest('.tw'); if (from && (!e.relatedTarget || !from.contains(e.relatedTarget))) { hideCard(); markSeen(from.dataset.key); } });
   $('grid').addEventListener('mouseleave', hideCard);
   $('grid').addEventListener('click', hideCard);
@@ -878,5 +1066,29 @@ function bind() {
   $('curIn').onchange = async () => { S.currency = $('curIn').value; await saveS(); render(); };
   $('skinIn').onchange = async () => { S.skin = $('skinIn').value; document.body.dataset.skin = S.skin; await saveS(); };
   $('huntIn').onchange = async () => { S.hunting = $('huntIn').value; await saveS(); render(); };
-  $('resetDemo').onclick = async () => { demoState = {}; await saveDemo(); render(); badge(); say('Demo board reset: Moby Dick and the other 19 whales are back.'); };
+  document.querySelectorAll('input[name="src"]').forEach(i => i.onchange = () => setSource(i.value));
+  $('stagesIn').onchange = async () => {
+    const list = [...new Set($('stagesIn').value.split(/\r?\n/).map(x => x.trim()).filter(Boolean))].slice(0, 12);
+    S.stages = list.length ? list : HUBSPOT_STAGES; $('stagesIn').value = S.stages.join('\n'); await saveS();
+    if (mode === 'manual') { accounts = manualAccounts(manualList, S); render(); }
+    say('Deal stages saved.');
+  };
+  $('stagesReset').onclick = async () => { S.stages = HUBSPOT_STAGES; $('stagesIn').value = S.stages.join('\n'); await saveS(); if (mode === 'manual') { accounts = manualAccounts(manualList, S); render(); } say("Back to HubSpot's default stages."); };
+  // edit a whale (manual mode)
+  document.querySelectorAll('input[name="edS"]').forEach(i => i.onchange = drawEditStatus);
+  $('edSave').onclick = saveEdit;
+  $('editDlg').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); saveEdit(); } });
+  $('clearBoard').onclick = async () => {
+    const n = accounts.length; if (!n || mode === 'demo') return;
+    $('settingsDlg').close();
+    if (!await askConfirm(`Throw back all ${n} whale${n > 1 ? 's' : ''}?`, 'Every whale comes off the board, so you can start again.', 'Clear them all')) return;
+    if (mode === 'manual') {
+      const before = manualList.slice(); manualList = []; await saveManual(); render(); badge();
+      say(`Cleared ${n} whale${n > 1 ? 's' : ''}. A clean deck, Captain.`, async () => { manualList = before; await saveManual(); render(); badge(); });
+    } else {
+      const before = targets.slice(), beforeAcc = accounts.slice(); targets = []; accounts = []; await saveTargets(); render(); badge();
+      say(`Cleared ${n} whale${n > 1 ? 's' : ''}. A clean deck, Captain.`, async () => { targets = before; accounts = beforeAcc; await saveTargets(); render(); badge(); });
+    }
+  };
+  $('resetDemo').onclick = async () => { demoState = {}; await saveDemo(); render(); badge(); say('Demo board reset: Moby Dick and the other 7 whales are back.'); };
 }

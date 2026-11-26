@@ -8,6 +8,7 @@
 import * as store from './lib/store.js';
 import { nextDue, buildRundown, rundownToSlack, trackChanges, stateOf } from './lib/model.js';
 import { demoAccounts, demoWatch } from './lib/demo.js';
+import { manualAccounts } from './lib/manual.js';
 import * as hubspot from './lib/hubspot.js';
 import { sendSlack } from './lib/slack.js';
 
@@ -39,12 +40,16 @@ async function setBadge(count) {
 
 async function badgeFromStore() {
   const settings = await store.loadSettings();
-  if (settings.token) { const { watch = {} } = await store.get('watch'); return setBadge(Object.keys(watch.changes || {}).length); }
+  if (settings.token || settings.source === 'manual') { const { watch = {} } = await store.get('watch'); return setBadge(Object.keys(watch.changes || {}).length); }
   const { demo = {} } = await store.get('demo');
   return setBadge(Object.keys(demoWatch(demoAccounts(demo), demo, a => stateOf(a, settings)).changes).length);
 }
 
 async function currentAccounts(settings) {
+  if (settings.source === 'manual') { // no CRM: the whales you keep up to date on the board
+    const { manual = [] } = await store.get('manual');
+    return { accounts: manualAccounts(manual, settings), demo: false };
+  }
   if (settings.token) {
     const { targets = [] } = await store.get('targets');
     const r = await hubspot.refresh(settings.token, targets);
@@ -70,7 +75,7 @@ async function sendScheduled() {
 // Once an hour: read HubSpot, note any whale that changed status, update the badge. Live mode only.
 async function watchCheck() {
   const settings = await store.loadSettings();
-  if (!settings.token) return;
+  if (!settings.token || settings.source === 'manual') return; // manual mode: changes are tracked when you save them on the board
   try { await currentAccounts(settings); } catch { /* offline or HubSpot hiccup: try again next hour */ }
   await badgeFromStore();
 }

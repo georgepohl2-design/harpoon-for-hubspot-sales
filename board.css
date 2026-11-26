@@ -140,10 +140,18 @@ body.tv .onboard { display: none !important; }
 .cap .v { font-size: 30px; }
 .bar { height: 8px; border-radius: 99px; background: var(--grey-bg); display: flex; overflow: hidden; margin-top: 6px; }
 .bar i { display: block; height: 100%; }
+.cap .bar { height: 10px; margin-top: 8px; }
+.cap .bar i { transition: filter .12s; }
+.cap .bar i:hover { filter: brightness(1.15) saturate(1.1); }
+/* the whale-y tip over each colour on the whales-to-hunt bar */
+.segtip { position: absolute; z-index: 16; pointer-events: none; transform: translate(-50%, calc(-100% - 10px)); background: #1F1A2E; color: #fff; border-radius: 10px; padding: 7px 12px 8px; font-size: 13.5px; font-weight: 700; white-space: nowrap; box-shadow: 0 12px 28px -12px rgba(20,10,40,.55); }
+.segtip small { display: block; font-size: 12px; font-weight: 500; color: #CFC8DA; margin-top: 1px; }
+.segtip::after { content: ""; position: absolute; left: calc(50% + var(--ax, 0px)); bottom: -5px; width: 10px; height: 10px; margin-left: -5px; background: #1F1A2E; transform: rotate(45deg); border-radius: 2px; }
 .hint { font-size: 12px; color: var(--muted); margin-top: 2px; }
 .kicon { width: 20px; height: 20px; display: block; }
 .hint.hover-only { opacity: 0; transition: opacity .2s; }
-.stat:hover .hint.hover-only, .stat:focus-within .hint.hover-only { opacity: 1; }
+/* "Ranked by priority" only shows if you linger on the card */
+.stat:hover .hint.hover-only, .stat:focus-within .hint.hover-only { opacity: 1; transition-delay: 1.2s; }
 .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; display: inline-block; }
 
 /* controls */
@@ -363,3 +371,97 @@ body:not(.tv) .tvexit { display: none; }
 
 #banners:empty { display: none; } /* no empty gap when there's nothing to say */
 body.cover .updated { display: none; } /* README pictures only */
+
+/* ---------- manual mode: no CRM ---------- */
+body.manual .chip.f[data-f="grey"] { display: none; } /* no CRM, so nothing to link */
+dialog.dlg-mid { width: min(620px, calc(100vw - 32px)); }
+.ed-hint { font-weight: 500; color: var(--muted); margin-left: 4px; }
+.ed-key { margin-top: -2px; }
+.ed-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.ed-field label, .ed-lbl { font-size: 13px; font-weight: 600; }
+.ed-field select { font: inherit; font-size: 14px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+.ed-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.ed-row [hidden] { display: none; }
+@media (max-width: 520px) { .ed-row { grid-template-columns: 1fr; } }
+.ed-status { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 560px) { .ed-status { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.ed-s { position: relative; cursor: pointer; }
+.ed-s input { position: absolute; opacity: 0; pointer-events: none; }
+.ed-s span { display: flex; flex-direction: column; gap: 3px; align-items: center; justify-content: center; text-align: center; min-height: 64px; line-height: 1.2; padding: 8px 10px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface); font-size: 13.5px; font-weight: 700; color: var(--muted); transition: background .12s, border-color .12s, color .12s; }
+.ed-s.s-won input:checked + span { background: var(--won-bg); border-color: var(--won); color: var(--won); }
+.ed-s.s-amber input:checked + span { background: var(--amber-bg); border-color: var(--amber); color: var(--amber); }
+.ed-s span i { font-style: normal; font-size: 20px; line-height: 1; }
+.ed-s.s-hot input:checked + span { background: #FDE6D8; border-color: #D9480F; color: #B23C0A; }
+.ed-s.s-cold input:checked + span { background: #DDEEFA; border-color: #2B7BB9; color: #1F5F90; }
+.ed-s.s-red input:checked + span { background: var(--red-bg); border-color: var(--red); color: var(--red); }
+.ed-s input:focus-visible + span { outline: 2px solid var(--violet); outline-offset: 2px; }
+.money-in { display: flex; align-items: center; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); overflow: hidden; }
+.money-in span { padding: 0 4px 0 12px; color: var(--muted); font-weight: 600; }
+.money-in .field { border: 0; flex: 1; min-width: 0; }
+#stagesIn { font: inherit; font-size: 14px; line-height: 1.5; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); resize: vertical; }
+.src-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 600px) { .src-pick { grid-template-columns: 1fr; } }
+.src-opt { position: relative; cursor: pointer; font-weight: 500 !important; }
+.src-opt input { position: absolute; opacity: 0; pointer-events: none; }
+.src-opt > span { display: flex; flex-direction: column; gap: 4px; height: 100%; box-sizing: border-box; padding: 12px 14px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface); }
+.src-opt b { font-size: 14.5px; }
+.src-opt small { font-size: 12.5px; color: var(--muted); line-height: 1.4; }
+.src-opt input:checked + span { border-color: var(--violet); background: var(--lavender); box-shadow: 0 0 0 1px var(--violet); }
+.src-opt input:focus-visible + span { outline: 2px solid var(--violet); outline-offset: 2px; }
+
+/* ---------- help and feedback: a message in a bottle ---------- */
+.helpfoot { display: flex; justify-content: space-between; align-items: center; gap: 10px 18px; flex-wrap: wrap; margin-top: 8px; padding: 14px 16px; border-radius: 12px; border: 1px dashed var(--line); font-size: 13px; color: var(--muted); }
+.helpfoot b { color: var(--ink); }
+.hf-links { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+.hf-links a, .linkbtn { font: inherit; font-size: 13px; font-weight: 600; color: var(--brand-text); text-decoration: none; background: none; border: 0; padding: 0; cursor: pointer; }
+.hf-links a:hover, .linkbtn:hover { text-decoration: underline; text-underline-offset: 2px; }
+body.tv .helpfoot { display: none; }
+#helpSec a.btn { text-decoration: none; }
+
+/* ---------- the size hierarchy: #1 biggest, then the top row, then the second row ---------- */
+.tiles { display: flex; flex-direction: column; gap: 10px; }
+.tw.t1 .tile { min-height: 128px; padding: 14px 14px 12px; }
+.tw.t1 .tile .name { font-size: 16px; }
+.tw.t2 .tile { min-height: 112px; }
+.tw.t2 .tile .name { font-size: 15px; }
+.tw.top1 .tile { box-shadow: 0 0 0 2px var(--violet), 0 16px 32px -18px rgba(110,59,216,.7); }
+.tw.top1 .tile .name { font-family: var(--display); font-weight: 600; font-size: 20px; line-height: 1.15; }
+.tw.top1 .rk { background: var(--violet); color: #fff; min-width: 30px; height: 26px; font-size: 13.5px; }
+.tw.top1 .stg { font-size: 13px; }
+.topbadge { position: absolute; top: -10px; left: 12px; z-index: 4; pointer-events: none; font-size: 11px; font-weight: 700; line-height: 1; color: #fff; background: var(--violet); border: 2px solid var(--bg); border-radius: 99px; padding: 3px 9px; white-space: nowrap; }
+body.tv .tw.t1 .tile { min-height: 150px; }
+body.tv .tw.t1 .tile .name { font-size: 20px; }
+body.tv .tw.t2 .tile .name { font-size: 19px; }
+body.tv .tw.top1 .tile .name { font-size: 26px; }
+
+/* ---------- hot and cold: a little fire or frost in the corner, behind the emoji ---------- */
+.tile.heat-hot, .tile.heat-cold { overflow: hidden; }
+.tile.heat-hot > :not(.sr), .tile.heat-cold > :not(.sr) { position: relative; z-index: 1; }
+.tile.heat-hot::before, .tile.heat-cold::before { content: ""; position: absolute; top: 0; right: 0; width: 120px; height: 92px; pointer-events: none; z-index: 0; }
+/* fire: a warm glow licking in from the top-right corner, gently flickering */
+.tile.heat-hot::before {
+  background:
+    radial-gradient(64px 50px at 100% 0%, rgba(255, 220, 110, .95), rgba(255, 214, 102, 0) 70%),
+    radial-gradient(118px 88px at 100% 0%, rgba(255, 122, 26, .72), rgba(255, 122, 26, 0) 72%),
+    radial-gradient(44px 66px at 84% 0%, rgba(232, 72, 12, .45), rgba(232, 72, 12, 0) 75%);
+  transform-origin: 100% 0; animation: hc-flicker 1.6s ease-in-out infinite alternate;
+}
+@keyframes hc-flicker { 0% { opacity: .85; transform: scale(1); } 40% { opacity: 1; transform: scale(1.06, 1.1); } 70% { opacity: .9; transform: scale(.98, 1.03); } 100% { opacity: 1; transform: scale(1.04); } }
+/* frost: an icy bloom in the corner */
+.tile.heat-cold::before {
+  background:
+    radial-gradient(56px 44px at 100% 0%, rgba(255, 255, 255, .95), rgba(255, 255, 255, 0) 72%),
+    radial-gradient(118px 88px at 100% 0%, rgba(140, 200, 245, .9), rgba(150, 205, 245, 0) 74%);
+}
+.tile .heat { font-size: 22px; }
+.tw.t1 .tile .heat { font-size: 24px; }
+.tw.top1 .tile .heat { font-size: 26px; }
+body.tv .tile .heat { font-size: 28px; }
+@media (prefers-reduced-motion: reduce) { .tile.heat-hot::before { animation: none; } }
+
+/* ---------- are you sure? ---------- */
+dialog.dlg-confirm { width: min(420px, calc(100vw - 32px)); }
+.dlg-confirm h2 { font-size: 21px; font-weight: 600; }
+.cf-acts { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
+.btn.danger-solid { background: var(--red); border-color: var(--red); color: #fff; }
+.btn.danger-solid:hover { filter: brightness(1.06); }

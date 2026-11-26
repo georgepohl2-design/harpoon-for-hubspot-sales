@@ -10,7 +10,7 @@
 - **Brief the crew on a schedule:** a Slack notification every morning or every Monday, saying who's doing what and who to go after next.
 - **Put it on the office TV,** so the whole team can see it all day.
 
-**Free.** A Chrome extension that reads from HubSpot, for a whole sales team or for one rep hunting their own whales. **[Try the demo in your browser →](https://georgepohl2-design.github.io/harpoon-for-hubspot-sales/board.html)** (made-up companies, nothing to install).
+**Free.** A Chrome extension that reads from HubSpot (or works with no CRM at all), for a whole sales team or for one rep hunting their own whales. **[Try the demo in your browser →](https://georgepohl2-design.github.io/harpoon-for-hubspot-sales/board.html)** (made-up companies, nothing to install).
 
 ---
 
@@ -25,6 +25,22 @@ The trouble is keeping the hunt going. The target list lives in a spreadsheet or
 I've built this by hand in past jobs: target-account visit alerts, red/amber/green follow-up rules, Slack lead cards. **Harpoon puts it in one place.** It shows every target account on one board, marks which ones nobody is working, and tells the team in Slack, by name, on a schedule.
 
 **The job it does:** alert the commercial team, mostly sales, so they get on it.
+
+## Why it's so simple
+
+There are plenty of complicated ABM tools out there. The way I see it, you only need a very simple board that tells you:
+
+- **Which company matters most** right now
+- **Who's responsible** for each one
+- **What stage the deal is in**
+- **Which ones are going 🔥 hot, and which are going 🥶 cold**
+
+Ideally it's linked to your CRM, so nobody has to keep it up to date by hand. Then you need just two more things:
+
+1. **Slack updates, daily or weekly,** so the commercial team stays in the loop.
+2. **The big screen,** so you see it every morning as you walk into the office.
+
+That's Harpoon. Nothing more.
 
 ## Who it's for
 
@@ -54,12 +70,12 @@ On each tile: ✉️ emails, 📞 calls and 🤝 meetings logged, the deal stage
 - **Hover a tile** for the detail: emails, calls, meetings, last touch, owner, deal value, lifecycle stage, a deal-stage progress strip, and the latest touches from HubSpot.
 - **Click a tile** to open that company in HubSpot.
 - **🧭 Ship's log:** the newest emails, calls and meetings across all your target accounts.
-- **Ranked by priority:** every whale has a number, and #1 is the one you want most. Drag a tile to re-rank, or type a new number in list view. Or sort A–Z.
-- Stats across the top: how many whales you're hunting, won and contacted percentages, open pipeline, won revenue.
+- **Ranked by priority:** every whale has a number, and #1 is the one you want most. You can see the ranking without reading a number: #1 gets the biggest tile and a 🐋 Top whale badge, the top row is a touch bigger than the second, and the second a touch bigger than the rest. Drag a tile to re-rank, or type a new number in list view. Or sort A–Z.
+- Stats across the top: how many whales you're hunting, won and contacted percentages, open pipeline, won revenue. Hover a colour on the whales bar to count them: 🎯 harpooned (won), 🔭 being hunted (being contacted), 👀 not spotted yet (not contacted) and 🌊 lost at sea (not linked to HubSpot).
 - Filter by colour, 🔥 or 🥶, search, or switch to a list view.
 - **What changed:** the red number on the toolbar whale is how many whales have changed since you last looked. Each one gets a tag on its tile: **🏆 Deal won!**, **👋 First contact**, **🔥 Heating up**, **🥶 Getting cold** or **Moved to Proposal** (whatever the new deal stage is). The hover card says what it was before. A won deal gets the full celebration: a harpoon strikes the tile and the confetti flies. Hover the tile and it's marked as seen, or press **Mark all seen**. Harpoon checks HubSpot once an hour while Chrome is open, and doesn't count whales you've just added.
 
-![What changed: tiles tagged Deal won, Heating up, First contact, Getting cold and Moved to Proposal](docs/alerts.png)
+![What changed: tiles tagged Deal won, Heating up, First contact, Getting cold and Moved to Negotiation](docs/alerts.png)
 
 **100 whales is the max, but we recommend starting with 20.** Need more than 100? That's trawling, not harpooning. (Try adding number 101.)
 
@@ -74,17 +90,17 @@ Paste company names or websites (most important first), upload a CSV (a `Company
 Press **Share** to see a preview, copy it into an email or Teams, send it now, or set it to go out automatically **every weekday morning** or **every Monday**. The Monday one looks like this:
 
 ```
-🐋 Ahoy crew! Whales to hunt: 20
-🟢 4 won / 🟠 9 being contacted / 🔴 5 not contacted so far
-🔥 Hot: Moby Dick, Whale C
-🥶 Getting cold: Whale M, Whale R
+🐋 Ahoy crew! Whales to hunt: 8
+🟢 2 won / 🟠 4 being contacted / 🔴 2 not contacted so far
+🔥 Hot: Whale C
+🥶 Getting cold: Whale H
 
 Who's doing what
-• Priya N.: working 3, won 1 · biggest: Moby Dick, £61k in Negotiation
-• Sam K.: working 2, won 1, 1 not contacted yet · biggest: Whale H, £28k in Proposal
-• Tom B.: working 1, won 2, 1 not contacted yet · biggest: Whale L, £15.5k in Discovery
-• Jess R.: working 3 · biggest: Whale C, £40k in Demo booked
-• 😱 No owner: Whale E, Whale I, Whale Q
+• Jess R.: working 2 · biggest: Whale C, £40k in Demo booked
+• Priya N.: working 2 · biggest: Moby Dick, £61k in Negotiation
+• Tom B.: won 1, 1 not contacted yet
+• Sam K.: won 1
+• 😱 No owner: Whale E
 
 🎯 Next to hunt: #4 Whale D. Owned but never contacted. @Tom B. time to make first contact.
 
@@ -101,6 +117,21 @@ Also under **Share**: one tidy picture of the hunt, with your whales, how many y
 
 ![The snapshot image: whales to hunt, contacted, won, open pipeline and the top five](docs/snapshot.png)
 
+### ✏️ No CRM? Go manual
+
+No HubSpot, or not allowed to connect it? Click **No CRM? Do it manually** when you set up (or pick **Manual, no CRM** in Settings). Add your whales as usual, then **click any whale** to set its:
+
+- **Status:** 🎯 Won, 🔥 Hot (you're talking to them a lot), 🔭 Being contacted, 🥶 Getting cold (you've been in touch, but they've gone quiet) or 👀 Not contacted
+- **Owner:** the person responsible for it (leave it blank if nobody is)
+- **Deal value:** it adds up into Open pipeline, and into Won revenue once it's won
+- **Deal stage:** these start as HubSpot's default sales pipeline (Appointment scheduled, Qualified to buy, Presentation scheduled, Decision maker bought-in, Contract sent), so your board lines up if you connect HubSpot later. Change them in Settings to match how your team sells.
+
+Everything else works the same: the colours, ranking, Share, the snapshot, the Slack notification and the TV mode. Mark a whale 🎯 Won and you still get the confetti. Without a CRM there are no emails, calls or meetings to read, so there's no ship's log: you say what's 🔥 hot and 🥶 getting cold yourself. Switch back to HubSpot any time: each side keeps its own list.
+
+### 🍾 Help and feedback
+
+At the bottom of the board, and in Settings under **Help and feedback**: tell us what you think, or report a leak in the hull. Both open a short form on GitHub, so you can see the reply.
+
 ### 📺 Big screen
 
 Press **📺 Big screen** for TV mode: full screen, big text, no buttons, refreshing itself every 10 minutes. Then cast the tab to the office TV. Steps below.
@@ -115,7 +146,7 @@ It's not on the Chrome Web Store yet, so you load it yourself. It's easier than 
 4. **Turn on Developer mode** with the switch in the top-right corner.
 5. **Click "Load unpacked"** (top left) and choose the `harpoon-for-hubspot-sales-main` folder.
 6. **Pin the whale.** Click the puzzle-piece icon next to the address bar, then the pin next to **Harpoon**.
-7. **Click the whale.** The board opens in demo mode with 20 made-up whales (Moby Dick leads the pod), plus three welcome steps to get you set up: connect HubSpot, add your whales, set up Slack. Have a play.
+7. **Click the whale.** The board opens in demo mode with 8 made-up whales (Moby Dick leads the pod), plus three welcome steps to get you set up: connect HubSpot, add your whales, set up Slack. Have a play.
 
 To update later, download the ZIP again, replace the folder, and press ↻ on the Harpoon card in `chrome://extensions`.
 
